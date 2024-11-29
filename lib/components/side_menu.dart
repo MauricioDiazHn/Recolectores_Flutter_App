@@ -16,6 +16,15 @@ class SideMenu extends StatefulWidget {
 
 class _SideMenuState extends State<SideMenu> {
   RiveAsset selectedMenu = sideMenu.first;
+
+  // Método para manejar la navegación a una pantalla específica
+  void navigateTo(String route) {
+    Future.delayed(Duration(seconds:1), () {
+      Navigator.pushNamed(context, route);
+    });
+    
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -52,13 +61,16 @@ class _SideMenuState extends State<SideMenu> {
                   },
                   press: () {
                     menu.input!.change(true);
-          
+
                     Future.delayed(Duration(seconds: 1), () {
                       menu.input!.change(false);
                     });
                     setState(() {
                       selectedMenu = menu;
                     });
+
+                    // Llamar al método de navegación
+                    navigateTo(menu.route);
                   },
                   isActive: selectedMenu == menu,
                 ),
@@ -84,13 +96,16 @@ class _SideMenuState extends State<SideMenu> {
                   },
                   press: () {
                     menu.input!.change(true);
-          
+
                     Future.delayed(Duration(seconds: 1), () {
                       menu.input!.change(false);
                     });
                     setState(() {
                       selectedMenu = menu;
                     });
+
+                    // Llamar al método de navegación
+                    navigateTo(menu.route);
                   },
                   isActive: selectedMenu == menu,
                 ),

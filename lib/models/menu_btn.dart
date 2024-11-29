@@ -20,7 +20,7 @@ class MenuBtn extends StatelessWidget {
           height: 40,
           width: 40,
           decoration: BoxDecoration(
-              color: Colors.white,
+              color: Colors.transparent,
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
@@ -29,8 +29,10 @@ class MenuBtn extends StatelessWidget {
                   blurRadius: 8,
                 )
               ]),
-          child: RiveAnimation.asset("icons/menu_icon.riv",
-              onInit: riveOnInit),
+          child: RiveAnimation.asset(
+            "icons/menu_button.riv",
+              onInit: riveOnInit
+            ),
         ),
       ),
     );
