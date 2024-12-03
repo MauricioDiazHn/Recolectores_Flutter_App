@@ -5,6 +5,7 @@ import 'package:recolectores_app_flutter/components/info_card.dart';
 import 'package:recolectores_app_flutter/components/side_menu_tile.dart';
 import 'package:recolectores_app_flutter/models/rive_asset.dart';
 import 'package:recolectores_app_flutter/utils/rive_utils.dart';
+// ignore: depend_on_referenced_packages
 import 'package:rive/rive.dart';
 
 class SideMenu extends StatefulWidget {
@@ -19,7 +20,8 @@ class _SideMenuState extends State<SideMenu> {
 
   // Método para manejar la navegación a una pantalla específica
   void navigateTo(String route) {
-    Future.delayed(Duration(seconds:1), () {
+    Future.delayed(const Duration(seconds:1), () {
+      // ignore: use_build_context_synchronously
       Navigator.pushNamed(context, route);
     });
     
@@ -62,7 +64,7 @@ class _SideMenuState extends State<SideMenu> {
                   press: () {
                     menu.input!.change(true);
 
-                    Future.delayed(Duration(seconds: 1), () {
+                    Future.delayed(const Duration(seconds: 1), () {
                       menu.input!.change(false);
                     });
                     setState(() {
@@ -97,7 +99,7 @@ class _SideMenuState extends State<SideMenu> {
                   press: () {
                     menu.input!.change(true);
 
-                    Future.delayed(Duration(seconds: 1), () {
+                    Future.delayed(const Duration(seconds: 1), () {
                       menu.input!.change(false);
                     });
                     setState(() {

@@ -19,9 +19,9 @@ class RiveAsset {
 
 List<RiveAsset> sideMenu = [
   RiveAsset("icons/animated_icon_set1_color.riv", "/SampleItemListView",
-      artboard: "HOME", stateMachineName: "HOME_interactivity", title: "Home"),
+      artboard: "HOME", stateMachineName: "HOME_interactivity", title: "Recolecta / Pedidos"),
       RiveAsset("icons/animated_icon_set1_color.riv", "login",
-      artboard: "SEARCH", stateMachineName: "SEARCH_Interactivity", title: "Search"),
+      artboard: "SEARCH", stateMachineName: "SEARCH_Interactivity", title: "Lista de Pedidos"),
       RiveAsset("icons/animated_icon_set1_color.riv", "/favorites",
       artboard: "LIKE/STAR", stateMachineName: "STAR_Interactivity", title: "Favorites"),
       RiveAsset("icons/animated_icon_set1_color.riv", "/help",

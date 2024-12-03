@@ -12,6 +12,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_animate: ^4.0.0
+  http: ^0.13.6
   flutter_localizations:
     sdk: flutter
 
