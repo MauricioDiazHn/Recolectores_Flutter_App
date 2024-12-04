@@ -20,11 +20,15 @@
 // }
 
 
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:recolectores_app_flutter/models/rive_asset.dart';
 import 'package:recolectores_app_flutter/components/side_menu.dart';
+import 'package:recolectores_app_flutter/src/sample_feature/api_constants.dart';
 import 'package:recolectores_app_flutter/src/sample_feature/sample_item_list_view.dart';
+import 'package:recolectores_app_flutter/src/ui/login/login.dart';
 
 class SampleItemDetailsView extends StatefulWidget {
   final RecolectaItem item;
@@ -43,11 +47,19 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   late bool _isApproved;
+  late TextEditingController comentarioController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _isApproved = widget.item.estado.toLowerCase() == 'aprobado';
+    comentarioController = TextEditingController(text: widget.item.comentario);
+  }
+
+  @override
+  void dispose() {
+    comentarioController.dispose(); // Limpiamos el controlador cuando el widget se destruya
+    super.dispose();
   }
 
   @override
@@ -56,7 +68,7 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
       key: _scaffoldKey,
       drawer: const SideMenu(),
       appBar: AppBar(
-        title: const Text('Detalle del Ítem'),
+        title: const Text('Detalles del Pedido'),
         leading: IconButton(
           icon: const Icon(Icons.menu),
           onPressed: () => _scaffoldKey.currentState?.openDrawer(),
@@ -68,20 +80,67 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
           children: [
             _buildNonEditableField(label: 'Proveedor', value: widget.item.proveedor),
             _buildNonEditableField(label: 'Dirección', value: widget.item.direccion),
-            _buildNonEditableField(label: 'Comentario', value: widget.item.comentario),
+            _buildEditableField(label: 'Comentario',
+              controller: comentarioController),
             _buildNonEditableField(
                 label: 'Cantidad', value: widget.item.cantidad.toString()),
             const SizedBox(height: 20),
             _buildSwitchField(),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () {
-                // Aquí puedes implementar la lógica para guardar cambios
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Cambios guardados exitosamente.'),
-                  ),
-                );
+              onPressed: () async {
+                try {
+                  final url = Uri.parse(
+                      '$baseUrl/recolectaenc/${widget.item.idRecolecta}');
+                  final token = UserSession.token; // Recuperar el token
+                  final headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer $token',
+                  };
+
+                  final body = jsonEncode(
+                    {
+                      'Estado': _isApproved ? 'Aprobado' : 'Pendiente',
+                      'Comentario': comentarioController.text,
+                      'FechaAceptacion': DateTime.now().toIso8601String()
+                    }
+                  );
+
+                  final response = await http.put(
+                    url,
+                    headers: headers,
+                    body: body,
+                  );
+
+                  if (response.statusCode == 200) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Cambios guardados exitosamente.'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                    
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => const SampleItemListView()), // Aquí ajusta el widget de inicio
+                    );
+
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error al guardar cambios: ${response.body}'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               },
               child: const Text('Guardar Cambios'),
             ),
@@ -104,6 +163,24 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
           labelText: label,
           border: const OutlineInputBorder(),
         ),
+      ),
+    );
+  }
+
+Widget _buildEditableField({
+    required String label,
+    required TextEditingController controller,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: TextField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+        ),
+        maxLines: 3, // Tamaño más grande para el campo de texto
+        style: TextStyle(fontSize: 18), // Aumenta el tamaño del texto dentro del campo
       ),
     );
   }

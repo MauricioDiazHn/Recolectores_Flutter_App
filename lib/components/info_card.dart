@@ -8,8 +8,8 @@ class InfoCard extends StatelessWidget {
     required this.profession,
   });
 
-  final String name;
-  final String profession;
+  final String? name;
+  final String? profession;
 
   @override
   Widget build(BuildContext context) {
@@ -22,11 +22,11 @@ class InfoCard extends StatelessWidget {
         ),
       ),
       title: Text(
-        name,
+        name ?? "",
         style: const TextStyle(color: Colors.white),
       ),
       subtitle: Text(
-        profession,
+        profession ?? "",
         style: const TextStyle(color: Colors.white),
       ),
     );

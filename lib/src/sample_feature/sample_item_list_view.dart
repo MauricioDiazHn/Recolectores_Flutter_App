@@ -10,6 +10,7 @@ import 'package:rive/rive.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
+import 'api_constants.dart';
 
 /// Displays a list of SampleItems.
 class SampleItemListView extends StatefulWidget {
@@ -80,7 +81,8 @@ class RecolectaItem {
       fechaRecolecta: json['fechaRecolecta'] != null
           ? DateTime.parse(json['fechaRecolecta'])
           : DateTime.now(), // Valor por defecto si es null
-      horaRecolecta: json['horaRecolecta'] ?? '', // Valor por defecto si es null
+      horaRecolecta:
+          json['horaRecolecta'] ?? '', // Valor por defecto si es null
       fechaAsignacion: json['fechaAsignacion'] != null
           ? DateTime.parse(json['fechaAsignacion'])
           : null, // Valor por defecto si es null
@@ -92,7 +94,8 @@ class RecolectaItem {
       kmInicial: json['kmInicial'] ?? 0, // Valor por defecto si es null
       kmFinal: json['kmFinal'] ?? 0, // Valor por defecto si es null
       tiempoEnSitio: json['tiempoEnSitio'] ?? 0, // Valor por defecto si es null
-      evaluacionProveedor: json['evaluacionProveedor'] ?? 0, // Valor por defecto si es null
+      evaluacionProveedor:
+          json['evaluacionProveedor'] ?? 0, // Valor por defecto si es null
       comentario: json['comentario'] ?? '', // Valor por defecto si es null
       cantidad: json['cantidad'] ?? 0, // Valor por defecto si es null
       estado: json['estado'] ?? '', // Valor por defecto si es null
@@ -109,7 +112,7 @@ class _SampleItemListViewState extends State<SampleItemListView> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   List<RecolectaItem> items = [];
-  bool isLoading = true;  
+  bool isLoading = true;
 
   void showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -127,20 +130,21 @@ class _SampleItemListViewState extends State<SampleItemListView> {
   }
 
   Future<void> fetchItems() async {
-
     // final prefs = await SharedPreferences.getInstance();
 
     // Recuperar el token
     // String? token = prefs.getString('token');
     String? token = UserSession.token;
+    int? motoristaId = UserSession.motoristaId;
 
-    if (token == null) {
-      final token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtYXVyaWNpby5kaWF6IiwianRpIjoiMDE2MGFlZDMtMmZiYS00ZDgwLWE0ZGEtNGYwOGUzNzg1MTdmIiwiZXhwIjoxNzMzMjYxNDI5LCJpc3MiOiJFTkVSQ09NSE4iLCJhdWQiOiJNb3RvcmlzdGFzIn0.-VUcX6Tm_WyT7hrU79qkMvvdRKMIjMcB67D6E4d_FtI';
+    if (token == null || motoristaId == null) {
+      final token =
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtYXVyaWNpby5kaWF6IiwianRpIjoiMDE2MGFlZDMtMmZiYS00ZDgwLWE0ZGEtNGYwOGUzNzg1MTdmIiwiZXhwIjoxNzMzMjYxNDI5LCJpc3MiOiJFTkVSQ09NSE4iLCJhdWQiOiJNb3RvcmlzdGFzIn0.-VUcX6Tm_WyT7hrU79qkMvvdRKMIjMcB67D6E4d_FtI';
+      final motoristaId = 2;
     }
-    final motoristaId = 2;
 
-    final url = Uri.parse(
-        'https://d065-200-107-126-225.ngrok-free.app/recolectaenc/$motoristaId');
+    final url =
+        Uri.parse('$baseUrl/recolectaenc/$motoristaId');
     final headers = {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $token',
@@ -174,7 +178,7 @@ class _SampleItemListViewState extends State<SampleItemListView> {
     return Scaffold(
       key: _scaffoldKey, // Agregado para manejar el menú lateral
       appBar: AppBar(
-        title: const Text('Sample Items'),
+        title: const Text('Recolectas / Pedidos'),
         leading: IconButton(
           icon: const Icon(Icons.menu),
           onPressed: () {
@@ -193,13 +197,15 @@ class _SampleItemListViewState extends State<SampleItemListView> {
                     final item = items[index];
                     return ListTile(
                       title: Text('Proveedor: ${item.proveedor}'),
-                      subtitle: Text('Dirección: ${item.direccion}\nOrden: ${item.ordenCompraId}'),
+                      subtitle: Text(
+                          'Dirección: ${item.direccion}\nOrden: ${item.ordenCompraId}'),
                       trailing: Text('Cantidad: ${item.cantidad}'),
                       onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => SampleItemDetailsView(item: item),
+                            builder: (context) =>
+                                SampleItemDetailsView(item: item),
                           ),
                         );
                       },

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:recolectores_app_flutter/components/info_card.dart';
 import 'package:recolectores_app_flutter/components/side_menu_tile.dart';
 import 'package:recolectores_app_flutter/models/rive_asset.dart';
+import 'package:recolectores_app_flutter/src/ui/login/login.dart';
 import 'package:recolectores_app_flutter/utils/rive_utils.dart';
 // ignore: depend_on_referenced_packages
 import 'package:rive/rive.dart';
@@ -20,11 +21,20 @@ class _SideMenuState extends State<SideMenu> {
 
   // Método para manejar la navegación a una pantalla específica
   void navigateTo(String route) {
-    Future.delayed(const Duration(seconds:1), () {
+    Future.delayed(const Duration(seconds: 1), () {
       // ignore: use_build_context_synchronously
       Navigator.pushNamed(context, route);
     });
-    
+  }
+  
+  void logout() {
+    UserSession.clearSession(); // Eliminar los datos de sesión
+
+    // Redirigir al login
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const Login()),
+    );
   }
 
   @override
@@ -38,9 +48,9 @@ class _SideMenuState extends State<SideMenu> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const InfoCard(
-                name: "Marco Mejia",
-                profession: "Jefe de IT",
+              InfoCard(
+                name: UserSession.fullName,
+                profession: UserSession.userName,
               ),
               Padding(
                 padding: const EdgeInsets.only(left: 24, top: 32, bottom: 16),
@@ -110,6 +120,22 @@ class _SideMenuState extends State<SideMenu> {
                     navigateTo(menu.route);
                   },
                   isActive: selectedMenu == menu,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 24, top: 32, bottom: 16),
+                child: GestureDetector(
+                  onTap: () {
+                    logout(); // Llamar al método de logout
+                  },
+                  child: Text(
+                    "Cerrar Sesión".toUpperCase(),
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
             ],

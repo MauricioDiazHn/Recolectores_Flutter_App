@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:recolectores_app_flutter/src/sample_feature/api_constants.dart';
 import 'package:recolectores_app_flutter/src/sample_feature/sample_item_list_view.dart';
 import 'package:recolectores_app_flutter/src/ui/create__account/create_account.dart';
 import 'package:recolectores_app_flutter/src/ui/rounded_btn/rounded_btn.dart';
@@ -24,22 +25,28 @@ class MyHttpOverrides extends HttpOverrides {
 
 class UserSession {
   static String? token;
-  static int? userId;
+  static int? motoristaId;
+  static String? fullName;
+  static String? userName;
 
-  static void saveSession(String newToken, int newUserId) {
+  static void saveSession(
+      String newToken, int newMotoristaId, String newFullName, String newUserName) {
     token = newToken;
-    userId = newUserId;
+    motoristaId = newMotoristaId;
+    fullName = newFullName;
+    userName = newUserName;
   }
 
   static void clearSession() {
     token = null;
-    userId = null;
+    motoristaId = null;
+    fullName = null;
+    userName = null;
   }
 }
 
 class _LoginState extends State<Login> {
   bool showSpinner = false;
-  // final _auth = FirebaseAuth.instance;
   String email = "";
   String password = "";
 
@@ -57,8 +64,7 @@ class _LoginState extends State<Login> {
       showSpinner = true;
     });
 
-    final url = Uri.parse(
-        'https://d065-200-107-126-225.ngrok-free.app/motorista/login');
+    final url = Uri.parse('$baseUrl/motorista/login');
     final headers = {'Content-Type': 'application/json'};
     final body = json.encode({
       'Username': email,
@@ -72,7 +78,10 @@ class _LoginState extends State<Login> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         String token = data['token'];
-        UserSession.saveSession(token, 2);
+        int motoristaId = data['motoristaId'];
+        String fullName = data['fullName'];
+        String username = email;
+        UserSession.saveSession(token, motoristaId, fullName, username);
         // final prefs = await SharedPreferences.getInstance();
         // await prefs.setString('token', token);
 
@@ -94,7 +103,7 @@ class _LoginState extends State<Login> {
 
   Future<Map<String, dynamic>> loginUser(String email, String password) async {
     final response = await http.post(
-      Uri.parse('http://localhost:5109/motorista/login'),
+      Uri.parse('$baseUrl/motorista/login'),
       headers: {'Content-Type': 'application/json'},
       body: json.encode({'email': email, 'password': password}),
     );
