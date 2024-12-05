@@ -143,8 +143,7 @@ class _SampleItemListViewState extends State<SampleItemListView> {
       final motoristaId = 2;
     }
 
-    final url =
-        Uri.parse('$baseUrl/recolectaenc/$motoristaId');
+    final url = Uri.parse('$baseUrl/recolectaenc/$motoristaId');
     final headers = {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $token',
@@ -195,20 +194,50 @@ class _SampleItemListViewState extends State<SampleItemListView> {
                   itemCount: items.length,
                   itemBuilder: (context, index) {
                     final item = items[index];
-                    return ListTile(
-                      title: Text('Proveedor: ${item.proveedor}'),
-                      subtitle: Text(
-                          'Dirección: ${item.direccion}\nOrden: ${item.ordenCompraId}'),
-                      trailing: Text('Cantidad: ${item.cantidad}'),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                SampleItemDetailsView(item: item),
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: item.estado.toLowerCase() == 'aprobado'
+                          ? Colors.greenAccent.withOpacity(0.2)
+                          : item.estado.toLowerCase() == 'pendiente'
+                              ? Colors.yellow.withOpacity(0.2)
+                              : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: item.estado.toLowerCase() == 'aprobado'
+                              ? Colors.green
+                              : item.estado.toLowerCase() == 'pendiente'
+                                  ? Colors.yellow.shade700
+                                  : Colors.black54,
+                          width: 2,
+                        )
+                      ),
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 5),
+                        child: ListTile(
+                          title: Text(
+                            'Proveedor: ${item.proveedor}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: item.estado.toLowerCase() == 'aprobado'
+                                  ? const Color.fromARGB(255, 139, 187, 142)
+                                  : item.estado.toLowerCase() == 'pendiente' 
+                                  ? const Color.fromARGB(255, 202, 201, 110)
+                                  : const Color.fromARGB(240, 255, 255, 255),
+                            ),
                           ),
-                        );
-                      },
+                          subtitle: Text(
+                              'Dirección: ${item.direccion}\nOrden: ${item.ordenCompraId}'),
+                          trailing: Text('Cantidad: ${item.cantidad}'),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    SampleItemDetailsView(item: item),
+                              ),
+                            );
+                          },
+                        ),
                     );
                   },
                 ),

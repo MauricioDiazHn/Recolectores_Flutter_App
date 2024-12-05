@@ -202,15 +202,15 @@ Widget _buildEditableField({
                   _isApproved = value;
                 });
               },
-              activeColor: Colors.green,
-              inactiveThumbColor: Colors.red,
-              inactiveTrackColor: Colors.red.shade200,
+              activeColor: Colors.green.withOpacity(0.8),
+              inactiveThumbColor: Colors.yellow.withOpacity(0.8),
+              inactiveTrackColor: Colors.yellow.shade200,
             ),
             const SizedBox(width: 10),
             Text(
               _isApproved ? 'Aprobado' : 'Pendiente',
               style: TextStyle(
-                color: _isApproved ? Colors.green : Colors.red,
+                color: _isApproved ? Colors.green : Colors.yellow,
                 fontWeight: FontWeight.bold,
               ),
             )

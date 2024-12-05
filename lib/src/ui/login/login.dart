@@ -310,28 +310,6 @@ class _LoginState extends State<Login> {
               const SizedBox(
                 height: 25,
               ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Dont have an account?',
-                    style: TextStyle(
-                        color: Colors.grey[600], fontWeight: FontWeight.w400),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => CreateAccount()));
-                    },
-                    child: const Text('Sign up',
-                        style: TextStyle(
-                          color: Color(0xff14DAE2),
-                        )),
-                  )
-                ],
-              )
             ],
           ),
         ),
