@@ -44,6 +44,17 @@ class SampleItemDetailsView extends StatefulWidget {
 }
 
 class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
+
+  void showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   bool _isApproved = false; // Inicializamos _isApproved
@@ -60,27 +71,38 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
     super.initState();
     _isApproved = widget.item.estado.toLowerCase() == 'aprobado';
     comentarioController = TextEditingController(text: widget.item.comentario);
-    _initializeSwitchStates();
-    List<Map<String, dynamic>> ordenes = _getOrderData();
-    _initializeDetailsVisibility(ordenes);
-    for (var ordenData in _getOrderData()) {
-      _cantidadRecogidaMap[ordenData['orden']] = 0;
-    }
-    for (var ordenData in _getOrderData()) {
-      _cantidadesRecogidas[ordenData['orden']] = {};
-      for (var producto in ordenData['productos']) {
-        _cantidadesRecogidas[ordenData['orden']]![producto['nombre']] = 0;
+
+
+    _initializeState();
+  }
+Future<void> _initializeState() async {
+  try {
+    final ordenes = await _fetchOrderData(widget.item.idRecolecta); // API call
+    setState(() {
+      _initializeSwitchStates(ordenes);
+      _initializeDetailsVisibility(ordenes);
+
+      for (var ordenData in ordenes) {
+        _cantidadRecogidaMap[ordenData['orden']] = 0;
       }
-    }
-  }
 
-  void _initializeSwitchStates() {
-    List<Map<String, dynamic>> ordenes = _getOrderData(); // Obtén los datos de las órdenes
-
-    for (var ordenData in ordenes) {
-      _isApprovedMap[ordenData['orden']] = widget.item.estado.toLowerCase() == 'Parcial'; // O usa la lógica que necesites
-    }
+      for (var ordenData in ordenes) {
+        _cantidadesRecogidas[ordenData['orden']] = {};
+        for (var producto in ordenData['productos']) {
+          _cantidadesRecogidas[ordenData['orden']]![producto['nombre']] = 0;
+        }
+      }
+    });
+  } catch (e) {
+    showError('Error al inicializar los datos: $e');
   }
+}
+
+  void _initializeSwitchStates(List<Map<String, dynamic>> ordenes) {
+  for (var ordenData in ordenes) {
+    _isApprovedMap[ordenData['orden']] = widget.item.estado.toLowerCase() == 'parcial';
+  }
+}
 
   void _initializeDetailsVisibility(List<Map<String, dynamic>> ordenes) {
     for (var ordenData in ordenes) {
@@ -104,6 +126,38 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
       ]},
     ];
   }
+
+  Future<List<Map<String, dynamic>>> _fetchOrderData(int encabezadoId) async {
+  final String token = UserSession.token!;
+  final String url = '$baseUrl/recolectadet/$encabezadoId';
+
+  final headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer $token',
+  };
+
+  try {
+    final response = await http.get(Uri.parse(url), headers: headers);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      return data.map((item) => {
+            'orden': item['OrdenCompraId'],
+            'cantidad': item['Cantidad'],
+            'productos': (item['Productos'] as List<dynamic>).map((producto) {
+              return {
+                'nombre': producto['Nombre'],
+                'cantidad': producto['Cantidad'],
+              };
+            }).toList(),
+          }).toList();
+    } else {
+      throw Exception('Error al obtener los detalles: ${response.body}');
+    }
+  } catch (e) {
+    throw Exception('Error de conexión: $e');
+  }
+}
 
   @override
   void dispose() {
@@ -146,7 +200,58 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () async {
-                // ... (tu código para guardar los cambios)
+                try {
+                  final url = Uri.parse(
+                      '$baseUrl/recolectaenc/${widget.item.idRecolecta}');
+                  final token = UserSession.token; // Recuperar el token
+                  final headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer $token',
+                  };
+
+                  final body = jsonEncode(
+                    {
+                      'Estado': _isApproved ? 'Aprobado' : 'Pendiente',
+                      'Comentario': comentarioController.text,
+                      'FechaAceptacion': DateTime.now().toIso8601String()
+                    }
+                  );
+
+                  final response = await http.put(
+                    url,
+                    headers: headers,
+                    body: body,
+                  );
+
+                  if (response.statusCode == 200) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Cambios guardados exitosamente.'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                    
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => const SampleItemListView()), // Aquí ajusta el widget de inicio
+                    );
+
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error al guardar cambios: ${response.body}'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               },
               child: const Text('Guardar Cambios'),
             ),
