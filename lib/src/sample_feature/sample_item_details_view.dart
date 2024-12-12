@@ -19,7 +19,6 @@
 //   }
 // }
 
-
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
@@ -40,11 +39,11 @@ class SampleItemDetailsView extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<SampleItemDetailsView> createState() => _RecolectaItemDetailsViewState();
+  State<SampleItemDetailsView> createState() =>
+      _RecolectaItemDetailsViewState();
 }
 
 class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
-
   void showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -54,7 +53,6 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
     );
   }
 
-  
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   bool _isApproved = false; // Inicializamos _isApproved
@@ -65,6 +63,7 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
 
   Map<int, int> _cantidadRecogidaMap = {};
   Map<int, Map<String, int>> _cantidadesRecogidas = {};
+  List<Map<String, dynamic>> _orderData = [];
 
   @override
   void initState() {
@@ -72,37 +71,40 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
     _isApproved = widget.item.estado.toLowerCase() == 'aprobado';
     comentarioController = TextEditingController(text: widget.item.comentario);
 
-
     _initializeState();
   }
-Future<void> _initializeState() async {
-  try {
-    final ordenes = await _fetchOrderData(widget.item.idRecolecta); // API call
-    setState(() {
-      _initializeSwitchStates(ordenes);
-      _initializeDetailsVisibility(ordenes);
 
-      for (var ordenData in ordenes) {
-        _cantidadRecogidaMap[ordenData['orden']] = 0;
-      }
+  Future<void> _initializeState() async {
+    try {
+      final ordenes =
+          await _fetchOrderData(widget.item.idRecolecta); // API call
+      setState(() {
+        _orderData = ordenes;
+        _initializeSwitchStates(ordenes);
+        _initializeDetailsVisibility(ordenes);
 
-      for (var ordenData in ordenes) {
-        _cantidadesRecogidas[ordenData['orden']] = {};
-        for (var producto in ordenData['productos']) {
-          _cantidadesRecogidas[ordenData['orden']]![producto['nombre']] = 0;
+        for (var ordenData in ordenes) {
+          _cantidadRecogidaMap[ordenData['orden']] = 0;
         }
-      }
-    });
-  } catch (e) {
-    showError('Error al inicializar los datos: $e');
+
+        for (var ordenData in ordenes) {
+          _cantidadesRecogidas[ordenData['orden']] = {};
+          for (var producto in ordenData['productos']) {
+            _cantidadesRecogidas[ordenData['orden']]![producto['nombre']] = 0;
+          }
+        }
+      });
+    } catch (e) {
+      showError('Error al inicializar los datos: $e');
+    }
   }
-}
 
   void _initializeSwitchStates(List<Map<String, dynamic>> ordenes) {
-  for (var ordenData in ordenes) {
-    _isApprovedMap[ordenData['orden']] = widget.item.estado.toLowerCase() == 'parcial';
+    for (var ordenData in ordenes) {
+      _isApprovedMap[ordenData['orden']] =
+          widget.item.estado.toLowerCase() == 'parcial';
+    }
   }
-}
 
   void _initializeDetailsVisibility(List<Map<String, dynamic>> ordenes) {
     for (var ordenData in ordenes) {
@@ -111,53 +113,73 @@ Future<void> _initializeState() async {
   }
 
   List<Map<String, dynamic>> _getOrderData() {
-      return [
-      {'orden': widget.item.ordenCompraId, 'cantidad': 50, 'productos': [
-        {'nombre': 'Producto A', 'cantidad': 20},
-        {'nombre': 'Producto B', 'cantidad': 30},
-      ]},
-      {'orden': 12346, 'cantidad': 25, 'productos': [
-        {'nombre': 'Producto C', 'cantidad': 25},
-      ]},
-      {'orden': 12347, 'cantidad': 100, 'productos': [
-        {'nombre': 'Producto D', 'cantidad': 50},
-        {'nombre': 'Producto E', 'cantidad': 30},
-        {'nombre': 'Producto F', 'cantidad': 20},
-      ]},
+    return [
+      {
+        'orden': widget.item.ordenCompraId,
+        'cantidad': 50,
+        'productos': [
+          {'nombre': 'Producto A', 'cantidad': 20},
+          {'nombre': 'Producto B', 'cantidad': 30},
+        ]
+      },
+      {
+        'orden': 12346,
+        'cantidad': 25,
+        'productos': [
+          {'nombre': 'Producto C', 'cantidad': 25},
+        ]
+      },
+      {
+        'orden': 12347,
+        'cantidad': 100,
+        'productos': [
+          {'nombre': 'Producto D', 'cantidad': 50},
+          {'nombre': 'Producto E', 'cantidad': 30},
+          {'nombre': 'Producto F', 'cantidad': 20},
+        ]
+      },
     ];
   }
 
   Future<List<Map<String, dynamic>>> _fetchOrderData(int encabezadoId) async {
-  final String token = UserSession.token!;
-  final String url = '$baseUrl/recolectadet/$encabezadoId';
+    final String token = UserSession.token!;
+    final String url = '$baseUrl/recolectaenc/recolectadet/$encabezadoId';
 
-  final headers = {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer $token',
-  };
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
 
-  try {
-    final response = await http.get(Uri.parse(url), headers: headers);
+      try {
+        final response = await http.get(Uri.parse(url), headers: headers);
 
-    if (response.statusCode == 200) {
-      final List<dynamic> data = json.decode(response.body);
-      return data.map((item) => {
-            'orden': item['OrdenCompraId'],
-            'cantidad': item['Cantidad'],
-            'productos': (item['Productos'] as List<dynamic>).map((producto) {
-              return {
-                'nombre': producto['Nombre'],
-                'cantidad': producto['Cantidad'],
-              };
-            }).toList(),
+        if (response.statusCode == 200) {
+          final List<dynamic> data = json.decode(response.body);
+          return data.map((item) {
+            final productos = (item['productos'] as List<dynamic>);
+            int cantidadTotal = 0;
+            for (var producto in productos) { // Itera sobre la lista de productos
+              cantidadTotal += producto['cantidad'] as int;
+            }
+
+            return {
+              'orden': item['ordenCompraId'],
+              'cantidad': cantidadTotal, // Almacena la suma total
+              'productos': productos.map((producto) {
+                return {
+                  'nombre': producto['nombre'],
+                  'cantidad': producto['cantidad'],
+                };
+              }).toList(),
+            };
           }).toList();
-    } else {
-      throw Exception('Error al obtener los detalles: ${response.body}');
-    }
-  } catch (e) {
-    throw Exception('Error de conexión: $e');
+        } else {
+          throw Exception('Error al obtener los detalles: ${response.body}');
+        }
+      } catch (e) {
+        throw Exception('Error de conexión: $e');
+      }
   }
-}
 
   @override
   void dispose() {
@@ -181,22 +203,22 @@ Future<void> _initializeState() async {
         padding: const EdgeInsets.all(16.0),
         child: ListView(
           children: [
-            _buildNonEditableField(label: 'Proveedor', value: widget.item.proveedor),
-            _buildNonEditableField(label: 'Dirección', value: widget.item.direccion),
+            _buildNonEditableField(
+                label: 'Proveedor', value: widget.item.proveedor),
+            _buildNonEditableField(
+                label: 'Dirección', value: widget.item.direccion),
             _buildEditableField(
               label: 'Comentario',
               controller: comentarioController,
             ),
-
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8.0),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start, // Alinea a la izquierda
+                crossAxisAlignment:
+                    CrossAxisAlignment.start, // Alinea a la izquierda
                 children: _buildOrderDetails(),
               ),
             ),
-
-
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () async {
@@ -209,13 +231,11 @@ Future<void> _initializeState() async {
                     'Authorization': 'Bearer $token',
                   };
 
-                  final body = jsonEncode(
-                    {
-                      'Estado': _isApproved ? 'Aprobado' : 'Pendiente',
-                      'Comentario': comentarioController.text,
-                      'FechaAceptacion': DateTime.now().toIso8601String()
-                    }
-                  );
+                  final body = jsonEncode({
+                    'Estado': _isApproved ? 'Aprobado' : 'Pendiente',
+                    'Comentario': comentarioController.text,
+                    'FechaAceptacion': DateTime.now().toIso8601String()
+                  });
 
                   final response = await http.put(
                     url,
@@ -230,16 +250,18 @@ Future<void> _initializeState() async {
                         backgroundColor: Colors.green,
                       ),
                     );
-                    
+
                     Navigator.pushReplacement(
                       context,
-                      MaterialPageRoute(builder: (context) => const SampleItemListView()), // Aquí ajusta el widget de inicio
+                      MaterialPageRoute(
+                          builder: (context) =>
+                              const SampleItemListView()), // Aquí ajusta el widget de inicio
                     );
-
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Error al guardar cambios: ${response.body}'),
+                        content:
+                            Text('Error al guardar cambios: ${response.body}'),
                         backgroundColor: Colors.red,
                       ),
                     );
@@ -262,11 +284,13 @@ Future<void> _initializeState() async {
   }
 
   List<Widget> _buildOrderDetails() {
-    //  Simulación de datos (reemplaza con tus datos reales)
-    List<Map<String, dynamic>> ordenes = _getOrderData();
+    if (_orderData.isEmpty) {
+      return [Text('No hay datos disponibles.')];
+    }
+
     List<Widget> widgets = [];
-        
-    for (var ordenData in ordenes) {
+
+    for (var ordenData in _orderData) {
       int orden = ordenData['orden'];
 
       widgets.add(
@@ -281,7 +305,8 @@ Future<void> _initializeState() async {
             ),
             subtitle: _showDetailsMap[orden] ?? false
                 ? Column(
-                    children: _buildProductDetailsWithInputs(ordenData['productos'], orden),
+                    children: _buildProductDetailsWithInputs(
+                        ordenData['productos'], orden),
                   )
                 : null,
             onTap: () {
@@ -296,37 +321,45 @@ Future<void> _initializeState() async {
     return widgets;
   }
 
-  List<Widget> _buildProductDetailsWithInputs(List<dynamic> productos, int orden) {
+  List<Widget> _buildProductDetailsWithInputs(
+      List<dynamic> productos, int orden) {
     return productos.map<Widget>((producto) {
       String productName = producto['nombre'];
       return Row(
         children: [
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start, // Alinea a la izquierda
+              crossAxisAlignment:
+                  CrossAxisAlignment.start, // Alinea a la izquierda
               children: [
                 Text(
                   productName,
-                  style: TextStyle(fontWeight: FontWeight.bold), // Negrita para el nombre del producto (opcional)
+                  style: TextStyle(
+                      fontWeight: FontWeight
+                          .bold), // Negrita para el nombre del producto (opcional)
                 ),
                 Text(
                   'Cantidad: ${producto['cantidad']}',
-                  style: TextStyle(fontSize: 12), // Tamaño de letra más pequeño para la cantidad
+                  style: TextStyle(
+                      fontSize:
+                          12), // Tamaño de letra más pequeño para la cantidad
                 ),
               ],
             ),
           ),
-           SizedBox(
+          SizedBox(
             width: 80,
             child: TextFormField(
               keyboardType: TextInputType.number,
               inputFormatters: <TextInputFormatter>[
                 FilteringTextInputFormatter.digitsOnly
               ],
-              initialValue: _cantidadesRecogidas[orden]![productName].toString(),
-               onChanged: (value) {
+              initialValue:
+                  _cantidadesRecogidas[orden]![productName].toString(),
+              onChanged: (value) {
                 setState(() {
-                  _cantidadesRecogidas[orden]![productName] = int.tryParse(value) ?? 0;
+                  _cantidadesRecogidas[orden]![productName] =
+                      int.tryParse(value) ?? 0;
                 });
               },
               decoration: InputDecoration(
@@ -348,12 +381,15 @@ Future<void> _initializeState() async {
         _buildSwitchField(orden),
         SizedBox(width: 8),
         // Campo de texto para la cantidad recogida
-        if (!(_isApprovedMap[orden] ?? false)) // Mostrar solo si no está "Ready"
+        if (!(_isApprovedMap[orden] ??
+            false)) // Mostrar solo si no está "Ready"
           SizedBox(
-            width: 80,  // Ajusta el ancho según tus necesidades
+            width: 80, // Ajusta el ancho según tus necesidades
             child: TextFormField(
               keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly], // Solo números
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly
+              ], // Solo números
               initialValue: _cantidadRecogidaMap[orden].toString(),
               onChanged: (value) {
                 setState(() {
@@ -363,7 +399,8 @@ Future<void> _initializeState() async {
               decoration: InputDecoration(
                 hintText: 'Cant. Rec.',
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 8), // Ajusta el padding
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 8), // Ajusta el padding
               ),
             ),
           ),
@@ -372,21 +409,20 @@ Future<void> _initializeState() async {
   }
 
   List<Widget> _buildProductDetails(List<dynamic> productos) {
-
-    return productos.map((producto) =>
-        ListTile(
-          title: Text(producto['nombre']),
-          trailing: Text('Cantidad: ${producto['cantidad']}'),
-        )
-    ).toList();
-
+    return productos
+        .map((producto) => ListTile(
+              title: Text(producto['nombre']),
+              trailing: Text('Cantidad: ${producto['cantidad']}'),
+            ))
+        .toList();
   }
 
-   Widget _buildSwitchField(int orden) {
+  Widget _buildSwitchField(int orden) {
     return Row(
       children: [
         Switch(
-          value: _isApprovedMap[orden] ?? false, //  Ajusta la lógica para el estado del switch
+          value: _isApprovedMap[orden] ??
+              false, //  Ajusta la lógica para el estado del switch
           onChanged: (value) {
             setState(() {
               _isApprovedMap[orden] = value;
@@ -400,18 +436,14 @@ Future<void> _initializeState() async {
         Text(
           (_isApprovedMap[orden] ?? false) ? 'Completo' : 'Parcial',
           style: TextStyle(
-            color: (_isApprovedMap[orden] ?? false) ? Colors.green : Colors.yellow,
+            color:
+                (_isApprovedMap[orden] ?? false) ? Colors.green : Colors.yellow,
             fontWeight: FontWeight.bold,
           ),
-        )
-            .animate()
-            .fade(duration: 300.ms)
-            .scale(delay: 100.ms),
+        ).animate().fade(duration: 300.ms).scale(delay: 100.ms),
       ],
     );
   }
-
-
 
   Widget _buildNonEditableField({
     required String label,
@@ -430,7 +462,7 @@ Future<void> _initializeState() async {
     );
   }
 
-Widget _buildEditableField({
+  Widget _buildEditableField({
     required String label,
     required TextEditingController controller,
   }) {
@@ -443,7 +475,8 @@ Widget _buildEditableField({
           border: const OutlineInputBorder(),
         ),
         maxLines: 3, // Tamaño más grande para el campo de texto
-        style: TextStyle(fontSize: 18), // Aumenta el tamaño del texto dentro del campo
+        style: TextStyle(
+            fontSize: 18), // Aumenta el tamaño del texto dentro del campo
       ),
     );
   }

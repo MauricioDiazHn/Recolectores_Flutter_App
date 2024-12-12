@@ -76,7 +76,7 @@ class RecolectaItem {
 
   factory RecolectaItem.fromJson(Map<String, dynamic> json) {
     return RecolectaItem(
-      idRecolecta: json['idRecolecta'] ?? 0, // Valor por defecto si es null
+      idRecolecta: json['idlinea'] ?? 0, // Valor por defecto si es null
       ordenCompraId: json['ordenCompraId'] ?? 0, // Valor por defecto si es null
       proveedor: json['proveedor'] ?? '', // Valor por defecto si es null
       direccion: json['direccion'] ?? '', // Valor por defecto si es null
@@ -143,12 +143,6 @@ class _SampleItemListViewState extends State<SampleItemListView> {
     // String? token = prefs.getString('token');
     String? token = UserSession.token;
     int? motoristaId = UserSession.motoristaId;
-
-    if (token == null || motoristaId == null) {
-      final token =
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtYXVyaWNpby5kaWF6IiwianRpIjoiMDE2MGFlZDMtMmZiYS00ZDgwLWE0ZGEtNGYwOGUzNzg1MTdmIiwiZXhwIjoxNzMzMjYxNDI5LCJpc3MiOiJFTkVSQ09NSE4iLCJhdWQiOiJNb3RvcmlzdGFzIn0.-VUcX6Tm_WyT7hrU79qkMvvdRKMIjMcB67D6E4d_FtI';
-      final motoristaId = 2;
-    }
 
     final url = Uri.parse('$baseUrl/recolectaenc/$motoristaId');
     final headers = {
