@@ -1,2 +1,2 @@
-const String baseUrl = 'https://9ajc9mes4x.loclx.io';
+const String baseUrl = 'https://lck7nv4dv4.loclx.io';
 
