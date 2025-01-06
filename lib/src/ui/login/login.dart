@@ -28,6 +28,7 @@ class UserSession {
   static int? motoristaId;
   static String? fullName;
   static String? userName;
+  static bool hasShownMileageDialog = false;
 
   static void saveSession(
       String newToken, int newMotoristaId, String newFullName, String newUserName) {
@@ -35,6 +36,7 @@ class UserSession {
     motoristaId = newMotoristaId;
     fullName = newFullName;
     userName = newUserName;
+    hasShownMileageDialog = false;
   }
 
   static void clearSession() {
@@ -42,6 +44,7 @@ class UserSession {
     motoristaId = null;
     fullName = null;
     userName = null;
+    hasShownMileageDialog = false;
   }
 }
 
@@ -82,8 +85,6 @@ class _LoginState extends State<Login> {
         String fullName = data['fullName'];
         String username = email;
         UserSession.saveSession(token, motoristaId, fullName, username);
-        // final prefs = await SharedPreferences.getInstance();
-        // await prefs.setString('token', token);
 
         Navigator.pushReplacement(
           context,
@@ -95,16 +96,6 @@ class _LoginState extends State<Login> {
     } catch (e) {
       showError('Error: $e');
     }
-
-    // if (email != "admin" || password != "12345" ) {
-    //     Navigator.pushReplacement(
-    //       context,
-    //       MaterialPageRoute(builder: (context) => const SampleItemListView()),
-    //     );
-    //   } else {
-    //     showError('Error al autenticar: Credenciales Invalidas');
-    //   }
-    
 
     setState(() {
       showSpinner = false;
@@ -281,32 +272,6 @@ class _LoginState extends State<Login> {
                     color: const Color.fromARGB(255, 20, 219, 226),
                     onPressed: () async {
                       await login();
-                      // setState(() {
-                      //   showSpinner = true;
-                      // });
-                      // try {
-                      //   // Llamada al backend
-                      //   final response = await loginUser(email, password);
-
-                      //   // Si el login es exitoso, guarda el token
-                      //   if (response['token'] != null) {
-                      //     String token = response['token'];
-
-                      //     // Navega a la siguiente pantalla
-                      //     Navigator.pushReplacement(
-                      //       context,
-                      //       MaterialPageRoute(builder: (context) => const SampleItemListView()),
-                      //     );
-                      //   } else {
-                      //     showError('Login failed');
-                      //   }
-                      // } catch (e) {
-                      //   showError('An error occurred');
-                      // } finally {
-                      //   setState(() {
-                      //     showSpinner = false;
-                      //   });
-                      // }
                     },
                   ),
                 ),

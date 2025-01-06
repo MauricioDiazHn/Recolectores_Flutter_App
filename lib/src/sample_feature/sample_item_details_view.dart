@@ -1,23 +1,3 @@
-// import 'package:flutter/material.dart';
-
-/// Displays detailed information about a SampleItem.
-// class SampleItemDetailsView extends StatelessWidget {
-//   const SampleItemDetailsView({super.key});
-
-//   static const routeName = '/sample_item';
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: AppBar(
-//         title: const Text('Item Details'),
-//       ),
-//       body: const Center(
-//         child: Text('More Information Here'),
-//       ),
-//     );
-//   }
-// }
 
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -110,35 +90,6 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
     for (var ordenData in ordenes) {
       _showDetailsMap[ordenData['orden']] = false; // Inicialmente ocultos
     }
-  }
-
-  List<Map<String, dynamic>> _getOrderData() {
-    return [
-      {
-        'orden': widget.item.ordenCompraId,
-        'cantidad': 50,
-        'productos': [
-          {'nombre': 'Producto A', 'cantidad': 20},
-          {'nombre': 'Producto B', 'cantidad': 30},
-        ]
-      },
-      {
-        'orden': 12346,
-        'cantidad': 25,
-        'productos': [
-          {'nombre': 'Producto C', 'cantidad': 25},
-        ]
-      },
-      {
-        'orden': 12347,
-        'cantidad': 100,
-        'productos': [
-          {'nombre': 'Producto D', 'cantidad': 50},
-          {'nombre': 'Producto E', 'cantidad': 30},
-          {'nombre': 'Producto F', 'cantidad': 20},
-        ]
-      },
-    ];
   }
 
   Future<List<Map<String, dynamic>>> _fetchOrderData(int encabezadoId) async {

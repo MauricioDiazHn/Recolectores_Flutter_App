@@ -114,9 +114,10 @@ class _SampleItemListViewState extends State<SampleItemListView> {
 
   
   bool isLoading = false;
-  bool _showMileageDialog = true;
+  bool _showMileageDialog = !UserSession.hasShownMileageDialog;
   TextEditingController _mileageController = TextEditingController();
-
+  bool _isButtonExpanded = false;
+  bool _showFinalizeButton = true;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   List<RecolectaItem> items = [];
@@ -173,8 +174,144 @@ class _SampleItemListViewState extends State<SampleItemListView> {
     }
   }
 
+  void _showMilleageDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Evita interacción con el fondo
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color.fromARGB(255, 0, 66, 68),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Ingrese el kilometraje actual', style: TextStyle(color: Color.fromARGB(255, 255, 255, 255))),
+              TextFormField(
+                controller: _mileageController,
+                keyboardType: TextInputType.number,
+                inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],
+                decoration: const InputDecoration(
+                  hintText: 'Kilometraje',
+                  hintStyle: TextStyle(color: Colors.white54),
+                ),
+                style: const TextStyle(color: Colors.white),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Ingrese un valor';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  if (_mileageController.text.isNotEmpty) {
+                    setState(() {
+                      _showMileageDialog = false;
+                      UserSession.hasShownMileageDialog = true; // Actualiza el flag
+                    });
+                    int kilometraje = int.parse(_mileageController.text);
+                    print("Kilometraje ingresado: $kilometraje");
+                    Navigator.of(context).pop(); // Cierra el diálogo
+                  }
+                },
+                child: const Text('Aceptar'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showFinalizeDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color.fromARGB(255, 0, 66, 68),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Ingrese el kilometraje final', style: TextStyle(color: Color.fromARGB(255, 255, 255, 255))),
+              TextFormField(
+                controller: _mileageController,
+                keyboardType: TextInputType.number,
+                inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],
+                decoration: const InputDecoration(
+                  hintText: 'Kilometraje',
+                  hintStyle: TextStyle(color: Colors.white54),
+                ),
+                style: const TextStyle(color: Colors.white),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Ingrese un valor';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  if (_mileageController.text.isNotEmpty) {
+                    _showConfirmationDialog();
+                  }
+                },
+                child: const Text('Aceptar'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showConfirmationDialog() {
+    Navigator.of(context).pop(); // Cerrar el diálogo actual
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Confirmación'),
+          content: const Text('¿Está seguro de que desea finalizar y cerrar sesión?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Cerrar el diálogo
+              },
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Cerrar el diálogo
+                // Aquí puedes llamar a la función para cerrar sesión
+                _finalizeAndLogout();
+              },
+              child: const Text('Aceptar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _finalizeAndLogout() {
+    // Lógica para finalizar y cerrar sesión
+    print("Kilometraje final ingresado: ${_mileageController.text}");
+
+    setState(() {
+      _showFinalizeButton = false;
+    });    
+    // Aquí deberías agregar la lógica para cerrar sesión
+  }
+
   @override
   Widget build(BuildContext context) {
+
+  if (_showMileageDialog) {
+      Future.delayed(Duration.zero, () => _showMilleageDialog());
+    }
+
     return Scaffold(
       key: _scaffoldKey, // Agregado para manejar el menú lateral
       appBar: AppBar(
@@ -190,51 +327,35 @@ class _SampleItemListViewState extends State<SampleItemListView> {
       body: Stack(
         children: [
           Opacity(
-      opacity: _showMileageDialog ? 0.2 : 1.0, // Opacidad variable
-      child: _buildMainContent(),
-    ),
-          if (_showMileageDialog)
-            Center(
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('Ingrese el kilometraje actual'),
-                      TextFormField(
-                        controller: _mileageController,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: <TextInputFormatter>[
-                          FilteringTextInputFormatter.digitsOnly
-                        ],
-                        decoration: const InputDecoration(hintText: 'Kilometraje'),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Ingrese un valor';
-                          }
-                          return null;
-                        },
-                      ),
-                      ElevatedButton(
-                        onPressed: () {
-                          if (_mileageController.text.isNotEmpty) {
-                            setState(() {
-                              _showMileageDialog = false;
-                            });
-                            int kilometraje = int.parse(_mileageController.text);
-                            print("Kilometraje ingresado: $kilometraje");
-                          }
-                        },
-                        child: const Text('Aceptar'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+            opacity: _showMileageDialog ? 0.2 : 1.0, // Opacidad variable
+            child: _buildMainContent(),
+          ),
         ],
       ),
+      floatingActionButton: _showFinalizeButton ? AnimatedContainer(
+        duration: Duration(milliseconds: 300),
+        width: _isButtonExpanded ? 200.0 : 60.0,
+        height: 60.0,
+        child: FloatingActionButton.extended(
+          onPressed: () {
+            setState(() {
+              _isButtonExpanded = !_isButtonExpanded;
+            });
+            if (!_isButtonExpanded) {
+              _showFinalizeDialog();
+            }
+          },
+          backgroundColor: const Color.fromARGB(255, 0, 66, 68),
+          label: _isButtonExpanded
+              ? const Text('FINALIZAR')
+              : const Icon(Icons.check),
+          icon: _isButtonExpanded ? const Icon(Icons.check) : null,
+        ),
+      ) : null,
+
+
+
+
     );
   }
   Widget _buildMainContent() {
