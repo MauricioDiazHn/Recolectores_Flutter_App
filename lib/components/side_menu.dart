@@ -1,12 +1,9 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:recolectores_app_flutter/components/info_card.dart';
 import 'package:recolectores_app_flutter/components/side_menu_tile.dart';
 import 'package:recolectores_app_flutter/models/rive_asset.dart';
 import 'package:recolectores_app_flutter/src/ui/login/login.dart';
 import 'package:recolectores_app_flutter/utils/rive_utils.dart';
-// ignore: depend_on_referenced_packages
 import 'package:rive/rive.dart';
 
 class SideMenu extends StatefulWidget {
@@ -130,7 +127,7 @@ class _SideMenuState extends State<SideMenu> {
                   },
                   child: Text(
                     "Cerrar Sesión".toUpperCase(),
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,

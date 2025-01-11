@@ -11,11 +11,11 @@ import 'package:recolectores_app_flutter/src/ui/login/login.dart';
 import 'package:flutter/services.dart';
 
 class SampleItemDetailsView extends StatefulWidget {
-  final RecolectaItem item;
+  final List<RecolectaItem> items;
 
   const SampleItemDetailsView({
     Key? key,
-    required this.item,
+    required this.items,
   }) : super(key: key);
 
   @override
@@ -48,32 +48,47 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
   @override
   void initState() {
     super.initState();
-    _isApproved = widget.item.estado.toLowerCase() == 'aprobado';
-    comentarioController = TextEditingController(text: widget.item.comentario);
-
+    comentarioController = TextEditingController();
+    _initializeData();
     _initializeState();
+  }
+
+  void _initializeData() {
+    for (var item in widget.items) {
+      _showDetailsMap[item.ordenCompraId] = false;
+      _isApprovedMap[item.ordenCompraId] = false;
+      _cantidadesRecogidas[item.ordenCompraId] = {
+        'cantidad': item.cantidad,
+      };
+    }
   }
 
   Future<void> _initializeState() async {
     try {
-      final ordenes =
-          await _fetchOrderData(widget.item.idRecolecta); // API call
+
+    List<Map<String, dynamic>> allOrdenes = [];
+
+    for (var item in widget.items) {
+      final ordenes = await _fetchOrderData(item.idRecolecta);
+      allOrdenes.addAll(ordenes);
+    }
+    
       setState(() {
-        _orderData = ordenes;
-        _initializeSwitchStates(ordenes);
-        _initializeDetailsVisibility(ordenes);
+      _orderData = allOrdenes;
+      _initializeSwitchStates(allOrdenes);
+      _initializeDetailsVisibility(allOrdenes);
 
-        for (var ordenData in ordenes) {
-          _cantidadRecogidaMap[ordenData['orden']] = 0;
-        }
+      for (var ordenData in allOrdenes) {
+        _cantidadRecogidaMap[ordenData['orden']] = 0;
+      }
 
-        for (var ordenData in ordenes) {
-          _cantidadesRecogidas[ordenData['orden']] = {};
-          for (var producto in ordenData['productos']) {
-            _cantidadesRecogidas[ordenData['orden']]![producto['nombre']] = 0;
-          }
+      for (var ordenData in allOrdenes) {
+        _cantidadesRecogidas[ordenData['orden']] = {};
+        for (var producto in ordenData['productos']) {
+          _cantidadesRecogidas[ordenData['orden']]![producto['nombre']] = 0;
         }
-      });
+      }
+    });
     } catch (e) {
       showError('Error al inicializar los datos: $e');
     }
@@ -82,7 +97,7 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
   void _initializeSwitchStates(List<Map<String, dynamic>> ordenes) {
     for (var ordenData in ordenes) {
       _isApprovedMap[ordenData['orden']] =
-          widget.item.estado.toLowerCase() == 'parcial';
+          widget.items.first.estado.toLowerCase() == 'parcial';
     }
   }
 
@@ -152,12 +167,12 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: ListView(
+        child: ListView( 
           children: [
             _buildNonEditableField(
-                label: 'Proveedor', value: widget.item.proveedor),
+                label: 'Proveedor', value: widget.items.first.proveedor),
             _buildNonEditableField(
-                label: 'Dirección', value: widget.item.direccion),
+                label: 'Dirección', value: widget.items.first.direccion),
             _buildEditableField(
               label: 'Comentario',
               controller: comentarioController,
@@ -175,7 +190,7 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
               onPressed: () async {
                 try {
                   final url = Uri.parse(
-                      '$baseUrl/recolectaenc/${widget.item.idRecolecta}');
+                      '$baseUrl/recolectaenc/${widget.items.first.idRecolecta}');
                   final token = UserSession.token; // Recuperar el token
                   final headers = {
                     'Content-Type': 'application/json',
@@ -236,46 +251,101 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
 
   List<Widget> _buildOrderDetails() {
     if (_orderData.isEmpty) {
-      return [Text('No hay datos disponibles.')];
+    return [Text('No hay datos disponibles.')];
+  }
+
+  List<Widget> widgets = [];
+
+  // Agrupar productos por orden de compra
+  Map<int, List<dynamic>> ordersMap = {};
+  for (var item in _orderData) {
+    if (!ordersMap.containsKey(item['orden'])) {
+      ordersMap[item['orden']] = [];
     }
+    ordersMap[item['orden']]!.addAll(item['productos']);
+  }
+  
 
-    List<Widget> widgets = [];
-
-    for (var ordenData in _orderData) {
-      int orden = ordenData['orden'];
-
-      widgets.add(
+  // Crear widgets basados en los grupos de órdenes de compra
+  ordersMap.forEach((orden, productos) {
+    widgets.add(
         Card(
           child: ListTile(
-            title: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Orden: #$orden\nCant: ${ordenData['cantidad']}'),
-                _buildSwitchField(orden), // Switch en el título
-              ],
-            ),
-            subtitle: _showDetailsMap[orden] ?? false
-                ? Column(
-                    children: _buildProductDetailsWithInputs(
-                        ordenData['productos'], orden),
-                  )
-                : null,
-            onTap: () {
-              setState(() {
-                _showDetailsMap[orden] = !(_showDetailsMap[orden] ?? false);
-              });
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Orden: #$orden\nCant: ${productos.fold<int>(0, (int sum, item) => sum + (item['cantidad'] as int))}'),
+              _buildSwitchField(orden),
+            ],
+          ),
+          subtitle: _showDetailsMap[orden] ?? false
+              ? Column(
+                  children: _buildProductDetailsWithInputs(productos, orden),
+                )
+              : null,
+          onTap: () {
+            setState(() {
+              _showDetailsMap[orden] = !(_showDetailsMap[orden] ?? false);
+            });
             },
           ),
         ),
       );
-    }
+    });
+
     return widgets;
+  }
+  
+List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) {
+    return items.map<Widget>((item) {
+      return Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Proveedor: ${item.proveedor}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  'Cantidad: ${item.cantidad}',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            width: 80,
+            child: TextFormField(
+              keyboardType: TextInputType.number,
+              inputFormatters: <TextInputFormatter>[
+                FilteringTextInputFormatter.digitsOnly
+              ],
+              initialValue: _cantidadesRecogidas[orden]!['cantidad'].toString(),
+              onChanged: (value) {
+                setState(() {
+                  _cantidadesRecogidas[orden]!['cantidad'] =
+                      int.tryParse(value) ?? 0;
+                });
+              },
+              decoration: const InputDecoration(
+                hintText: 'Cant. Rec.',
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 8),
+              ),
+            ),
+          ),
+        ],
+      );
+    }).toList();
   }
 
   List<Widget> _buildProductDetailsWithInputs(
       List<dynamic> productos, int orden) {
     return productos.map<Widget>((producto) {
       String productName = producto['nombre'];
+    int? cantidad = _cantidadesRecogidas[orden]?[productName];
       return Row(
         children: [
           Expanded(
@@ -306,7 +376,7 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
                 FilteringTextInputFormatter.digitsOnly
               ],
               initialValue:
-                  _cantidadesRecogidas[orden]![productName].toString(),
+                  (cantidad != null && cantidad > 0) ? cantidad.toString() : '0',
               onChanged: (value) {
                 setState(() {
                   _cantidadesRecogidas[orden]![productName] =

@@ -131,11 +131,14 @@ class _SampleItemListViewState extends State<SampleItemListView> {
     );
   }
 
-  @override
-  void initState() {
-    super.initState();
-    fetchItems();
-  }
+  
+
+@override
+void initState() {
+  super.initState();
+  checkMileageStatus();
+  fetchItems();
+}
 
   Future<void> fetchItems() async {
     // final prefs = await SharedPreferences.getInstance();
@@ -295,6 +298,62 @@ class _SampleItemListViewState extends State<SampleItemListView> {
     );
   }
 
+  Future<bool> hasEnteredCurrentMileage(int motoristaId) async {
+  final url = Uri.parse('$baseUrl/recolectaenc/$motoristaId/currentMileage');
+  final headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ${UserSession.token}', // Asegúrate de tener el token
+  };
+
+  try {
+    final response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return data['hasEnteredMileage'] ?? false;
+    } else {
+      showError('Error al verificar el kilometraje actual: ${response.body}');
+      return false;
+    }
+  } catch (e) {
+    showError('Error: $e');
+    return false;
+  }
+}
+
+/// Verifica si el transportista ya finalizó la recolección
+Future<bool> hasFinalizedRecolecta(int motoristaId) async {
+  final url = Uri.parse('$baseUrl/recolectaenc/$motoristaId/finalizeStatus');
+  final headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ${UserSession.token}', // Asegúrate de tener el token
+  };
+
+  try {
+    final response = await http.get(url, headers: headers);
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return data['hasFinalized'] ?? false;
+    } else {
+      showError('Error al verificar el estado de finalización: ${response.body}');
+      return false;
+    }
+  } catch (e) {
+    showError('Error: $e');
+    return false;
+  }
+}
+  Future<void> checkMileageStatus() async {
+  int motoristaId = UserSession.motoristaId ?? 0;
+
+  bool hasCurrentMileage = await hasEnteredCurrentMileage(motoristaId);
+  bool hasFinalized = await hasFinalizedRecolecta(motoristaId);
+
+  setState(() {
+    _showMileageDialog = !hasCurrentMileage;
+    _showFinalizeButton = !hasFinalized;
+  });
+}
+
   void _finalizeAndLogout() {
     // Lógica para finalizar y cerrar sesión
     print("Kilometraje final ingresado: ${_mileageController.text}");
@@ -333,7 +392,7 @@ class _SampleItemListViewState extends State<SampleItemListView> {
         ],
       ),
       floatingActionButton: _showFinalizeButton ? AnimatedContainer(
-        duration: Duration(milliseconds: 300),
+        duration: const Duration(milliseconds: 300),
         width: _isButtonExpanded ? 200.0 : 60.0,
         height: 60.0,
         child: FloatingActionButton.extended(
@@ -358,58 +417,108 @@ class _SampleItemListViewState extends State<SampleItemListView> {
 
     );
   }
+  
   Widget _buildMainContent() {
     return isLoading
         ? const Center(child: CircularProgressIndicator())
         : items.isEmpty
             ? const Center(child: Text('No hay datos disponibles.'))
-            : ListView.builder(
-                itemCount: items.length,
-                itemBuilder: (context, index) {
-                  final item = items[index];
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: item.estado.toLowerCase() == 'aprobado'
-                          ? Colors.greenAccent.withOpacity(0.2)
-                          : item.estado.toLowerCase() == 'pendiente'
-                              ? Colors.yellow.withOpacity(0.2)
-                              : Colors.transparent,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: item.estado.toLowerCase() == 'aprobado'
-                            ? Colors.green
-                            : item.estado.toLowerCase() == 'pendiente'
-                                ? Colors.yellow.shade700
-                                : Colors.black54,
-                        width: 2,
-  ),
-),
-                    margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    child: ListTile(
-                      title: Text(
-                        'Proveedor: ${item.proveedor}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: item.estado.toLowerCase() == 'aprobado'
-                              ? const Color.fromARGB(255, 139, 187, 142)
-                              : item.estado.toLowerCase() == 'pendiente'
-                                  ? const Color.fromARGB(255, 202, 201, 110)
-                                  : const Color.fromARGB(240, 255, 255, 255),
-                        ),
-                      ),
-                      subtitle: Text('Dirección: ${item.direccion}\nOrden: ${item.ordenCompraId}'),
-                      trailing: Text('Cantidad: ${item.cantidad}'),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => SampleItemDetailsView(item: item),
-                          ),
-                        );
-                      },
-                    ),
-                  );
-                },
+            : ListView(
+                children: _buildProviderList(),
               );
   }
+
+  List<Widget> _buildProviderList() {
+    // Agrupar items por proveedor
+    Map<String, List<RecolectaItem>> providerMap = {};
+    for (var item in items) {
+      if (!providerMap.containsKey(item.proveedor)) {
+        providerMap[item.proveedor] = [];
+      }
+      providerMap[item.proveedor]!.add(item);
+    }
+
+    // Crear widgets basados en los grupos de proveedores
+    List<Widget> widgets = [];
+    providerMap.forEach((proveedor, items) {
+      widgets.add(
+        Card(
+          child: ListTile(
+            title: Text(
+              'Proveedor: $proveedor',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text('Total de Órdenes: ${items.length}'),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => SampleItemDetailsView(items: items),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    });
+
+    return widgets;
+  }
 }
+
+  
+//   Widget _buildMainContent() {
+//     return isLoading
+//         ? const Center(child: CircularProgressIndicator())
+//         : items.isEmpty
+//             ? const Center(child: Text('No hay datos disponibles.'))
+//             : ListView.builder(
+//                 itemCount: items.length,
+//                 itemBuilder: (context, index) {
+//                   final item = items[index];
+//                   return Container(
+//                     decoration: BoxDecoration(
+//                       color: item.estado.toLowerCase() == 'aprobado'
+//                           ? Colors.greenAccent.withOpacity(0.2)
+//                           : item.estado.toLowerCase() == 'pendiente'
+//                               ? Colors.yellow.withOpacity(0.2)
+//                               : Colors.transparent,
+//                       borderRadius: BorderRadius.circular(8),
+//                       border: Border.all(
+//                         color: item.estado.toLowerCase() == 'aprobado'
+//                             ? Colors.green
+//                             : item.estado.toLowerCase() == 'pendiente'
+//                                 ? Colors.yellow.shade700
+//                                 : Colors.black54,
+//                         width: 2,
+//   ),
+// ),
+//                     margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+//                     child: ListTile(
+//                       title: Text(
+//                         'Proveedor: ${item.proveedor}',
+//                         style: TextStyle(
+//                           fontWeight: FontWeight.bold,
+//                           color: item.estado.toLowerCase() == 'aprobado'
+//                               ? const Color.fromARGB(255, 139, 187, 142)
+//                               : item.estado.toLowerCase() == 'pendiente'
+//                                   ? const Color.fromARGB(255, 202, 201, 110)
+//                                   : const Color.fromARGB(240, 255, 255, 255),
+//                         ),
+//                       ),
+//                       subtitle: Text('Dirección: ${item.direccion}\nOrden: ${item.ordenCompraId}'),
+//                       trailing: Text('Cantidad: ${item.cantidad}'),
+//                       onTap: () {
+//                         Navigator.push(
+//                           context,
+//                           MaterialPageRoute(
+//                             builder: (context) => SampleItemDetailsView(item: item),
+//                           ),
+//                         );
+//                       },
+//                     ),
+//                   );
+//                 },
+//               );
+//   }
+//  }
