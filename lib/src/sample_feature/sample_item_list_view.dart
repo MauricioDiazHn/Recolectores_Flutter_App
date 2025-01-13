@@ -209,6 +209,8 @@ void initState() {
                 onPressed: () {
                   if (_mileageController.text.isNotEmpty) {
                     setState(() {
+                  final kmInicial = int.tryParse(_mileageController.text) ?? 0;
+                    _submitKmInicial(UserSession.motoristaId ?? 0, kmInicial, 'En Ruta');
                       _showMileageDialog = false;
                       UserSession.hasShownMileageDialog = true; // Actualiza el flag
                     });
@@ -225,6 +227,30 @@ void initState() {
       },
     );
   }
+
+  Future<void> _submitKmInicial(int motoristaId, int kmInicial, String estado) async {
+  final url = Uri.parse('$baseUrl/recolecta/updateKmInicialAndStatus');
+  final headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ${UserSession.token}', // Asegúrate de tener el token
+  };
+  final body = json.encode({
+    'MotoristaId': motoristaId,
+    'KmInicial': kmInicial,
+    'Estado': estado,
+  });
+
+  try {
+    final response = await http.post(url, headers: headers, body: body);
+    if (response.statusCode == 200) {
+      print("Actualización exitosa: ${response.body}");
+    } else {
+      showError('Error al actualizar: ${response.body}');
+    }
+  } catch (e) {
+    showError('Error: $e');
+  }
+}
 
   void _showFinalizeDialog() {
     showDialog(
@@ -257,7 +283,8 @@ void initState() {
               ElevatedButton(
                 onPressed: () {
                   if (_mileageController.text.isNotEmpty) {
-                    _showConfirmationDialog();
+                  final kmFinal = int.tryParse(_mileageController.text) ?? 0;
+                  _showConfirmationDialog(kmFinal);
                   }
                 },
                 child: const Text('Aceptar'),
@@ -269,7 +296,7 @@ void initState() {
     );
   }
 
-  void _showConfirmationDialog() {
+  void _showConfirmationDialog(int kmFinal) {
     Navigator.of(context).pop(); // Cerrar el diálogo actual
     showDialog(
       context: context,
@@ -288,7 +315,7 @@ void initState() {
               onPressed: () {
                 Navigator.of(context).pop(); // Cerrar el diálogo
                 // Aquí puedes llamar a la función para cerrar sesión
-                _finalizeAndLogout();
+                _finalizeAndLogout(UserSession.motoristaId ?? 0, kmFinal, 'Recolectada');
               },
               child: const Text('Aceptar'),
             ),
@@ -353,15 +380,36 @@ Future<bool> hasFinalizedRecolecta(int motoristaId) async {
   });
 }
 
-  void _finalizeAndLogout() {
-    // Lógica para finalizar y cerrar sesión
-    print("Kilometraje final ingresado: ${_mileageController.text}");
+  Future<void> _finalizeAndLogout(int motoristaId, int kmFinal, String estado) async {
+  final url = Uri.parse('$baseUrl/recolecta/updateKmFinalAndStatus');
+  final headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ${UserSession.token}', // Asegúrate de tener el token
+  };
+  final body = json.encode({
+    'MotoristaId': motoristaId,
+    'KmFinal': kmFinal,
+    'Estado': estado,
+  });
 
-    setState(() {
-      _showFinalizeButton = false;
-    });    
-    // Aquí deberías agregar la lógica para cerrar sesión
+  try {
+    final response = await http.post(url, headers: headers, body: body);
+    if (response.statusCode == 200) {
+      print("Actualización exitosa: ${response.body}");
+    } else {
+      showError('Error al actualizar: ${response.body}');
+    }
+  } catch (e) {
+    showError('Error: $e');
   }
+
+  // Lógica para finalizar y cerrar sesión
+  print("Kilometraje final ingresado: $kmFinal");
+
+  setState(() {
+    _showFinalizeButton = false;
+  });
+}
 
   @override
   Widget build(BuildContext context) {
