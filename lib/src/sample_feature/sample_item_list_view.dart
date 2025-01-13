@@ -299,7 +299,7 @@ void initState() {
   }
 
   Future<bool> hasEnteredCurrentMileage(int motoristaId) async {
-  final url = Uri.parse('$baseUrl/recolectaenc/$motoristaId/currentMileage');
+  final url = Uri.parse('$baseUrl/recolectaenc/$motoristaId/currentMileage?checkFinalMileage=false');
   final headers = {
     'Content-Type': 'application/json',
     'Authorization': 'Bearer ${UserSession.token}', // Asegúrate de tener el token
@@ -308,8 +308,8 @@ void initState() {
   try {
     final response = await http.get(url, headers: headers);
     if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      return data['hasEnteredMileage'] ?? false;
+      final data = json.decode(response.body) as bool;
+      return data;
     } else {
       showError('Error al verificar el kilometraje actual: ${response.body}');
       return false;
@@ -320,9 +320,8 @@ void initState() {
   }
 }
 
-/// Verifica si el transportista ya finalizó la recolección
 Future<bool> hasFinalizedRecolecta(int motoristaId) async {
-  final url = Uri.parse('$baseUrl/recolectaenc/$motoristaId/finalizeStatus');
+  final url = Uri.parse('$baseUrl/recolectaenc/$motoristaId/currentMileage?checkFinalMileage=true');
   final headers = {
     'Content-Type': 'application/json',
     'Authorization': 'Bearer ${UserSession.token}', // Asegúrate de tener el token
@@ -331,8 +330,8 @@ Future<bool> hasFinalizedRecolecta(int motoristaId) async {
   try {
     final response = await http.get(url, headers: headers);
     if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      return data['hasFinalized'] ?? false;
+      final data = json.decode(response.body) as bool;
+      return data;
     } else {
       showError('Error al verificar el estado de finalización: ${response.body}');
       return false;

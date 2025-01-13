@@ -189,8 +189,8 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
             ElevatedButton(
               onPressed: () async {
                 try {
-                  final url = Uri.parse(
-                      '$baseUrl/recolectaenc/${widget.items.first.idRecolecta}');
+                  for (var item in widget.items) {
+                  final url = Uri.parse('$baseUrl/recolectaenc/${item.idRecolecta}');
                   final token = UserSession.token; // Recuperar el token
                   final headers = {
                     'Content-Type': 'application/json',
@@ -209,29 +209,54 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
                     body: body,
                   );
 
-                  if (response.statusCode == 200) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Cambios guardados exitosamente.'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
+                  List<Map<String, dynamic>> detalles = [];
 
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) =>
-                              const SampleItemListView()), // Aquí ajusta el widget de inicio
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content:
-                            Text('Error al guardar cambios: ${response.body}'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
+                  // Iterar sobre los datos recogidos para preparar el JSON
+                  _orderData.forEach((ordenData) {
+                    int ordenCompraId = ordenData['orden'];
+                    ordenData['productos'].forEach((producto) {
+                      detalles.add({
+                        'ordenCompraId': ordenCompraId,
+                        'nombre': producto['nombre'],
+                        'cantidad': _cantidadesRecogidas[ordenCompraId]![producto['nombre']],
+                        'estado': (_isApprovedMap[ordenCompraId] ?? false) ? 'Recolectado' : 'Pendiente'
+                      });
+                    });
+                  });
+
+                  final url2 = Uri.parse('$baseUrl/detalles/update');
+
+                  final body2 = jsonEncode(detalles);
+
+                  final response2 = await http.put(
+                    url2,
+                    headers: headers,
+                    body: body2,
+                  );
+
+                    if (response.statusCode != 200 && response2.statusCode != 200) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error al guardar cambios para idRecolecta: ${item.idRecolecta} - ${response.body}'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return; // Salir si hay un error
+                    }
                   }
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Cambios guardados exitosamente para todos los registros.'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                  
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SampleItemListView()), // Aquí ajusta el widget de inicio
+                  );
+
                 } catch (e) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
