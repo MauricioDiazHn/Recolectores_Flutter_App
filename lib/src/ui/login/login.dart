@@ -132,19 +132,13 @@ class _LoginState extends State<Login> {
                 child: Center(
                   child: SizedBox(
                       width: 200,
-                      height: 60,
+                      height: 125,
                       child: Container(
-                        decoration: BoxDecoration(
-                          color: const Color.fromARGB(
-                              255, 143, 222, 224), // Color de fondo
-                          borderRadius:
-                              BorderRadius.circular(20), // Radio de redondeo
-                        ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(
                               20), // Asegura que la imagen también tenga bordes redondeados
                           child: Image.asset(
-                            'images/logo.png', // Ruta de la imagen
+                            'images/logoapp.png', // Ruta de la imagen
                             // fit: BoxFit.cover, // Controla cómo la imagen se ajusta dentro del contenedor
                           ),
                         ),
@@ -152,18 +146,20 @@ class _LoginState extends State<Login> {
                 ),
               ),
               const Padding(
-                padding: EdgeInsets.fromLTRB(20, 15, 20, 18),
-                child: Text(
-                  '       App Recolectores',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                      fontFamily: 'times_new_roman_bold_italic',
-                      fontSize: 30),
+                padding: EdgeInsets.fromLTRB(20, 1, 20, 1),
+                child: Center(
+                  child: Text(
+                    'App Suite',
+                    style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontFamily: 'times_new_roman_bold_italic',
+                    fontSize: 30),
+                  ),
                 ),
               ),
               const Padding(
-                padding: EdgeInsets.fromLTRB(20, 15, 20, 8),
+                padding: EdgeInsets.fromLTRB(20, 1, 20, 1),
                 child: Text(
                   'Login',
                   style: TextStyle(

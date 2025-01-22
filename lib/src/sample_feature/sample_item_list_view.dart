@@ -29,6 +29,8 @@ class SampleItemListView extends StatefulWidget {
 }
 
 
+
+
 class RecolectaItem {
   final int idRecolecta;
   final int ordenCompraId;
@@ -136,15 +138,19 @@ class _SampleItemListViewState extends State<SampleItemListView> {
 @override
 void initState() {
   super.initState();
-  checkMileageStatus();
-  fetchItems();
+  _checkAndShowMileageDialog(); // Verificar y mostrar el diálogo al iniciar
+  _fetchData();
 }
 
-  Future<void> fetchItems() async {
-    // final prefs = await SharedPreferences.getInstance();
+Future<void> _fetchData() async {
+    setState(() {
+      isLoading = true;
+    });
+    await fetchItems();
+    await checkMileageStatus();
+  }
 
-    // Recuperar el token
-    // String? token = prefs.getString('token');
+  Future<void> fetchItems() async {
     String? token = UserSession.token;
     int? motoristaId = UserSession.motoristaId;
 
@@ -229,7 +235,7 @@ void initState() {
   }
 
   Future<void> _submitKmInicial(int motoristaId, int kmInicial, String estado) async {
-  final url = Uri.parse('$baseUrl/recolecta/updateKmInicialAndStatus');
+  final url = Uri.parse('$baseUrl/recolectaenc/updateKmInicialAndStatus');
   final headers = {
     'Content-Type': 'application/json',
     'Authorization': 'Bearer ${UserSession.token}', // Asegúrate de tener el token
@@ -380,8 +386,17 @@ Future<bool> hasFinalizedRecolecta(int motoristaId) async {
   });
 }
 
+  Future<void> _checkAndShowMileageDialog() async {
+    await checkMileageStatus();
+    if (_showMileageDialog) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showMilleageDialog();
+      });
+    }
+  }
+
   Future<void> _finalizeAndLogout(int motoristaId, int kmFinal, String estado) async {
-  final url = Uri.parse('$baseUrl/recolecta/updateKmFinalAndStatus');
+  final url = Uri.parse('$baseUrl/recolectaenc/updateKmFinalAndStatus');
   final headers = {
     'Content-Type': 'application/json',
     'Authorization': 'Bearer ${UserSession.token}', // Asegúrate de tener el token
@@ -411,12 +426,13 @@ Future<bool> hasFinalizedRecolecta(int motoristaId) async {
   });
 }
 
+  Future<void> _refreshData() async {
+    await _fetchData();
+    await _checkAndShowMileageDialog(); // Vuelve a verificar el diálogo al hacer refresh
+  }
+
   @override
   Widget build(BuildContext context) {
-
-  if (_showMileageDialog) {
-      Future.delayed(Duration.zero, () => _showMilleageDialog());
-    }
 
     return Scaffold(
       key: _scaffoldKey, // Agregado para manejar el menú lateral
@@ -434,7 +450,10 @@ Future<bool> hasFinalizedRecolecta(int motoristaId) async {
         children: [
           Opacity(
             opacity: _showMileageDialog ? 0.2 : 1.0, // Opacidad variable
-            child: _buildMainContent(),
+            child: RefreshIndicator(
+              onRefresh: _refreshData,
+              child: _buildMainContent()
+            ),
           ),
         ],
       ),
@@ -471,6 +490,7 @@ Future<bool> hasFinalizedRecolecta(int motoristaId) async {
         : items.isEmpty
             ? const Center(child: Text('No hay datos disponibles.'))
             : ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 children: _buildProviderList(),
               );
   }
@@ -512,60 +532,3 @@ Future<bool> hasFinalizedRecolecta(int motoristaId) async {
     return widgets;
   }
 }
-
-  
-//   Widget _buildMainContent() {
-//     return isLoading
-//         ? const Center(child: CircularProgressIndicator())
-//         : items.isEmpty
-//             ? const Center(child: Text('No hay datos disponibles.'))
-//             : ListView.builder(
-//                 itemCount: items.length,
-//                 itemBuilder: (context, index) {
-//                   final item = items[index];
-//                   return Container(
-//                     decoration: BoxDecoration(
-//                       color: item.estado.toLowerCase() == 'aprobado'
-//                           ? Colors.greenAccent.withOpacity(0.2)
-//                           : item.estado.toLowerCase() == 'pendiente'
-//                               ? Colors.yellow.withOpacity(0.2)
-//                               : Colors.transparent,
-//                       borderRadius: BorderRadius.circular(8),
-//                       border: Border.all(
-//                         color: item.estado.toLowerCase() == 'aprobado'
-//                             ? Colors.green
-//                             : item.estado.toLowerCase() == 'pendiente'
-//                                 ? Colors.yellow.shade700
-//                                 : Colors.black54,
-//                         width: 2,
-//   ),
-// ),
-//                     margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-//                     child: ListTile(
-//                       title: Text(
-//                         'Proveedor: ${item.proveedor}',
-//                         style: TextStyle(
-//                           fontWeight: FontWeight.bold,
-//                           color: item.estado.toLowerCase() == 'aprobado'
-//                               ? const Color.fromARGB(255, 139, 187, 142)
-//                               : item.estado.toLowerCase() == 'pendiente'
-//                                   ? const Color.fromARGB(255, 202, 201, 110)
-//                                   : const Color.fromARGB(240, 255, 255, 255),
-//                         ),
-//                       ),
-//                       subtitle: Text('Dirección: ${item.direccion}\nOrden: ${item.ordenCompraId}'),
-//                       trailing: Text('Cantidad: ${item.cantidad}'),
-//                       onTap: () {
-//                         Navigator.push(
-//                           context,
-//                           MaterialPageRoute(
-//                             builder: (context) => SampleItemDetailsView(item: item),
-//                           ),
-//                         );
-//                       },
-//                     ),
-//                   );
-//                 },
-//               );
-//   }
-//  }

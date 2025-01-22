@@ -79,13 +79,15 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
       _initializeDetailsVisibility(allOrdenes);
 
       for (var ordenData in allOrdenes) {
-        _cantidadRecogidaMap[ordenData['orden']] = 0;
-      }
+        final int orden = ordenData['orden'];
+        _cantidadRecogidaMap[orden] = 0;        
+        int cantIngresada = ordenData['cantIngresada'] ?? ordenData['cantidad'];
 
-      for (var ordenData in allOrdenes) {
-        _cantidadesRecogidas[ordenData['orden']] = {};
+        _cantidadesRecogidas[orden] = {
+          'cantidad': cantIngresada,
+        };
         for (var producto in ordenData['productos']) {
-          _cantidadesRecogidas[ordenData['orden']]![producto['nombre']] = 0;
+          _cantidadesRecogidas[orden]![producto['nombre']] = producto['cantidad'];
         }
       }
     });
@@ -131,6 +133,8 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
             return {
               'orden': item['ordenCompraId'],
               'cantidad': cantidadTotal, // Almacena la suma total
+              'nombreProyecto': item['nombreProyecto'],
+              'cantIngresada': item['cantIngresada'],
               'productos': productos.map((producto) {
                 return {
                   'nombre': producto['nombre'],
@@ -293,6 +297,7 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
 
   // Crear widgets basados en los grupos de órdenes de compra
   ordersMap.forEach((orden, productos) {
+    String? nombreProyecto = _orderData.firstWhere((data) => data['orden'] == orden)['nombreProyecto'];
     widgets.add(
         Card(
           child: ListTile(
@@ -323,6 +328,7 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
   
 List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) {
     return items.map<Widget>((item) {
+    int cantidad = _cantidadesRecogidas[orden]!['cantidad'] ?? item.cantidad;
       return Row(
         children: [
           Expanded(
@@ -347,7 +353,7 @@ List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) 
               inputFormatters: <TextInputFormatter>[
                 FilteringTextInputFormatter.digitsOnly
               ],
-              initialValue: _cantidadesRecogidas[orden]!['cantidad'].toString(),
+              initialValue: cantidad.toString(),
               onChanged: (value) {
                 setState(() {
                   _cantidadesRecogidas[orden]!['cantidad'] =
@@ -401,7 +407,7 @@ List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) 
                 FilteringTextInputFormatter.digitsOnly
               ],
               initialValue:
-                  (cantidad != null && cantidad > 0) ? cantidad.toString() : '0',
+                  (cantidad != null && cantidad > 0) ? cantidad.toString() : producto['cantidad'].toString(),
               onChanged: (value) {
                 setState(() {
                   _cantidadesRecogidas[orden]![productName] =
