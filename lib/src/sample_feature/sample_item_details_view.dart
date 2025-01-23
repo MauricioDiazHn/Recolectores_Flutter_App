@@ -1,4 +1,3 @@
-
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
@@ -57,9 +56,7 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
     for (var item in widget.items) {
       _showDetailsMap[item.ordenCompraId] = false;
       _isApprovedMap[item.ordenCompraId] = false;
-      _cantidadesRecogidas[item.ordenCompraId] = {
-        'cantidad': item.cantidad,
-      };
+      _cantidadesRecogidas[item.ordenCompraId] = {};
     }
   }
 
@@ -219,16 +216,21 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
                   _orderData.forEach((ordenData) {
                     int ordenCompraId = ordenData['orden'];
                     ordenData['productos'].forEach((producto) {
+                      String nombreProducto = producto['nombre'];
+                      // Si no hay un valor ingresado, usar la cantidad original del producto
+                      int cantidadRecogida = _cantidadesRecogidas[ordenCompraId]?[nombreProducto] ?? 
+                                           producto['cantidad'];
+                      
                       detalles.add({
                         'ordenCompraId': ordenCompraId,
-                        'nombre': producto['nombre'],
-                        'cantidad': _cantidadesRecogidas[ordenCompraId]![producto['nombre']],
+                        'nombre': nombreProducto,
+                        'cantidad': cantidadRecogida,
                         'estado': (_isApprovedMap[ordenCompraId] ?? false) ? 'Recolectado' : 'Pendiente'
                       });
                     });
                   });
 
-                  final url2 = Uri.parse('$baseUrl/detalles/update');
+                  final url2 = Uri.parse('$baseUrl/recolectaenc/detalles/update');
 
                   final body2 = jsonEncode(detalles);
 
