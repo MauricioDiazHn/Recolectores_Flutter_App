@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:recolectores_app_flutter/components/info_card.dart';
 import 'package:recolectores_app_flutter/components/side_menu_tile.dart';
-import 'package:recolectores_app_flutter/models/rive_asset.dart';
+import 'package:recolectores_app_flutter/src/models/rive_asset.dart';
 import 'package:recolectores_app_flutter/src/ui/login/login.dart';
 import 'package:recolectores_app_flutter/utils/rive_utils.dart';
 import 'package:rive/rive.dart';
