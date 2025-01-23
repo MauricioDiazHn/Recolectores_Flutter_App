@@ -355,7 +355,9 @@ List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) 
               inputFormatters: <TextInputFormatter>[
                 FilteringTextInputFormatter.digitsOnly
               ],
-              initialValue: cantidad.toString(),
+              controller: TextEditingController(
+                text: cantidad.toString(),
+              ),
               onChanged: (value) {
                 setState(() {
                   _cantidadesRecogidas[orden]!['cantidad'] =
@@ -378,25 +380,21 @@ List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) 
       List<dynamic> productos, int orden) {
     return productos.map<Widget>((producto) {
       String productName = producto['nombre'];
-    int? cantidad = _cantidadesRecogidas[orden]?[productName];
+      int cantidadMaxima = producto['cantidad'];
+      int? cantidad = _cantidadesRecogidas[orden]?[productName];
       return Row(
         children: [
           Expanded(
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start, // Alinea a la izquierda
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   productName,
-                  style: TextStyle(
-                      fontWeight: FontWeight
-                          .bold), // Negrita para el nombre del producto (opcional)
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  'Cantidad: ${producto['cantidad']}',
-                  style: TextStyle(
-                      fontSize:
-                          12), // Tamaño de letra más pequeño para la cantidad
+                  'Cantidad: $cantidadMaxima',
+                  style: const TextStyle(fontSize: 12),
                 ),
               ],
             ),
@@ -408,15 +406,46 @@ List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) 
               inputFormatters: <TextInputFormatter>[
                 FilteringTextInputFormatter.digitsOnly
               ],
-              initialValue:
-                  (cantidad != null && cantidad > 0) ? cantidad.toString() : producto['cantidad'].toString(),
+              controller: TextEditingController(
+                text: (cantidad != null && cantidad > 0) 
+                    ? cantidad.toString() 
+                    : producto['cantidad'].toString(),
+              ),
               onChanged: (value) {
-                setState(() {
-                  _cantidadesRecogidas[orden]![productName] =
-                      int.tryParse(value) ?? 0;
-                });
+                int? inputValue = int.tryParse(value);
+                if (inputValue != null) {
+                  if (inputValue > cantidadMaxima) {
+                    // Mostrar mensaje de error
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('La cantidad no puede ser mayor a la cantidad original'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    // Actualizar el estado y el campo con el valor máximo
+                    setState(() {
+                      _cantidadesRecogidas[orden]![productName] = cantidadMaxima;
+                    });
+                    // Actualizar el controlador del TextFormField
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        TextEditingController controller = TextEditingController(text: cantidadMaxima.toString());
+                        setState(() {
+                          // Actualizar el widget con el nuevo controlador
+                          controller.selection = TextSelection.fromPosition(
+                            TextPosition(offset: controller.text.length),
+                          );
+                        });
+                      }
+                    });
+                  } else {
+                    setState(() {
+                      _cantidadesRecogidas[orden]![productName] = inputValue;
+                    });
+                  }
+                }
               },
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 hintText: 'Cant. Rec.',
                 border: OutlineInputBorder(),
                 contentPadding: EdgeInsets.symmetric(horizontal: 8),
