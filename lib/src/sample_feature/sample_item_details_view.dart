@@ -44,6 +44,9 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
   Map<int, Map<String, int>> _cantidadesRecogidas = {};
   List<Map<String, dynamic>> _orderData = [];
 
+  // Agregar un mapa para los controladores
+  final Map<String, TextEditingController> _controllers = {};
+
   @override
   void initState() {
     super.initState();
@@ -77,14 +80,19 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
 
       for (var ordenData in allOrdenes) {
         final int orden = ordenData['orden'];
-        _cantidadRecogidaMap[orden] = 0;        
-        int cantIngresada = ordenData['cantIngresada'] ?? ordenData['cantidad'];
-
-        _cantidadesRecogidas[orden] = {
-          'cantidad': cantIngresada,
-        };
+        _cantidadRecogidaMap[orden] = 0;
+        
+        // Inicializar el mapa para esta orden
+        _cantidadesRecogidas[orden] = {};
+        
+        // Iterar sobre los productos y establecer las cantidades ingresadas
         for (var producto in ordenData['productos']) {
-          _cantidadesRecogidas[orden]![producto['nombre']] = producto['cantidad'];
+          String nombreProducto = producto['nombre'];
+          int cantidadInicial = producto['cantIngresada'] ?? producto['cantidad'];
+          _cantidadesRecogidas[orden]![nombreProducto] = cantidadInicial;
+          
+          String controllerKey = '${orden}_$nombreProducto';
+          _controllers[controllerKey] = TextEditingController(text: cantidadInicial.toString());
         }
       }
     });
@@ -132,11 +140,11 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
               'cantidad': cantidadTotal,
               'nombreProyecto': item['nombreProyecto'],
               'comprador': item['comprador'],
-              'cantIngresada': item['cantIngresada'],
               'productos': productos.map((producto) {
                 return {
                   'nombre': producto['nombre'],
                   'cantidad': producto['cantidad'],
+                  'cantIngresada': producto['cantIngresada'],
                 };
               }).toList(),
             };
@@ -151,6 +159,10 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
 
   @override
   void dispose() {
+    // Limpiar los controladores
+    for (var controller in _controllers.values) {
+      controller.dispose();
+    }
     comentarioController.dispose();
     super.dispose();
   }
@@ -430,6 +442,12 @@ List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) 
       int cantidadMaxima = producto['cantidad'];
       int cantidad = _cantidadesRecogidas[orden]?[productName] ?? 0;
       
+      // Crear una clave única para cada controlador
+      String controllerKey = '${orden}_$productName';
+      
+      // Obtener o crear el controlador
+      _controllers[controllerKey] ??= TextEditingController(text: cantidad.toString());
+      
       return Material(
         color: Colors.transparent,
         child: InkWell(
@@ -473,9 +491,7 @@ List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) 
                     inputFormatters: <TextInputFormatter>[
                       FilteringTextInputFormatter.digitsOnly
                     ],
-                    controller: TextEditingController(
-                      text: cantidad.toString(),
-                    ),
+                    controller: _controllers[controllerKey],
                     onChanged: (value) {
                       int? inputValue = int.tryParse(value);
                       if (inputValue != null) {
@@ -488,16 +504,7 @@ List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) 
                           );
                           setState(() {
                             _cantidadesRecogidas[orden]![productName] = cantidadMaxima;
-                          });
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            if (mounted) {
-                              TextEditingController controller = TextEditingController(text: cantidadMaxima.toString());
-                              setState(() {
-                                controller.selection = TextSelection.fromPosition(
-                                  TextPosition(offset: controller.text.length),
-                                );
-                              });
-                            }
+                            _controllers[controllerKey]?.text = cantidadMaxima.toString();
                           });
                         } else if (inputValue < 0) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -508,10 +515,12 @@ List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) 
                           );
                           setState(() {
                             _cantidadesRecogidas[orden]![productName] = 0;
+                            _controllers[controllerKey]?.text = "0";
                           });
                         } else {
                           setState(() {
                             _cantidadesRecogidas[orden]![productName] = inputValue;
+                            _controllers[controllerKey]?.text = inputValue.toString();
                           });
                         }
                         _verificarCantidadesCompletas(orden, productos);
