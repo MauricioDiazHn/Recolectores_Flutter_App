@@ -496,7 +496,6 @@ Future<bool> hasFinalizedRecolecta(int motoristaId) async {
   }
 
   List<Widget> _buildProviderList() {
-    // Agrupar items por proveedor
     Map<String, List<RecolectaItem>> providerMap = {};
     for (var item in items) {
       if (!providerMap.containsKey(item.proveedor)) {
@@ -505,15 +504,41 @@ Future<bool> hasFinalizedRecolecta(int motoristaId) async {
       providerMap[item.proveedor]!.add(item);
     }
 
-    // Crear widgets basados en los grupos de proveedores
     List<Widget> widgets = [];
     providerMap.forEach((proveedor, items) {
+      // Determinar el estado general del proveedor basado en sus items
+      String estadoGeneral = items.first.estado; // Tomamos el estado del primer item
+
       widgets.add(
-        Card(
+        Container(
+          decoration: BoxDecoration(
+            color: estadoGeneral.toLowerCase() == 'recolectada'
+                ? Colors.greenAccent.withOpacity(0.2)
+                : estadoGeneral.toLowerCase() == 'en ruta'
+                    ? Colors.yellow.withOpacity(0.2)
+                    : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: estadoGeneral.toLowerCase() == 'recolectada'
+                  ? Colors.green
+                  : estadoGeneral.toLowerCase() == 'en ruta'
+                      ? Colors.yellow.shade700
+                      : Colors.black54,
+              width: 2,
+            ),
+          ),
+          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           child: ListTile(
             title: Text(
               'Proveedor: $proveedor',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: estadoGeneral.toLowerCase() == 'recolectada'
+                    ? const Color.fromARGB(255, 139, 187, 142)
+                    : estadoGeneral.toLowerCase() == 'en ruta'
+                        ? const Color.fromARGB(255, 202, 201, 110)
+                        : const Color.fromARGB(240, 255, 255, 255),
+              ),
             ),
             subtitle: Text('Total de Órdenes: ${items.length}'),
             onTap: () {
