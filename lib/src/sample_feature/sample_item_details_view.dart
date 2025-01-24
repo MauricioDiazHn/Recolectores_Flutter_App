@@ -129,8 +129,9 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
 
             return {
               'orden': item['ordenCompraId'],
-              'cantidad': cantidadTotal, // Almacena la suma total
+              'cantidad': cantidadTotal,
               'nombreProyecto': item['nombreProyecto'],
+              'comprador': item['comprador'],
               'cantIngresada': item['cantIngresada'],
               'productos': productos.map((producto) {
                 return {
@@ -303,22 +304,49 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
     widgets.add(
         Card(
           child: ListTile(
-          title: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Orden: #$orden\nCant: ${productos.fold<int>(0, (int sum, item) => sum + (item['cantidad'] as int))}'),
-              _buildSwitchField(orden),
-            ],
-          ),
-          subtitle: _showDetailsMap[orden] ?? false
-              ? Column(
-                  children: _buildProductDetailsWithInputs(productos, orden),
-                )
-              : null,
-          onTap: () {
-            setState(() {
-              _showDetailsMap[orden] = !(_showDetailsMap[orden] ?? false);
-            });
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Orden: #$orden\nCant: ${productos.fold<int>(0, (int sum, item) => sum + (item['cantidad'] as int))}'),
+                      Text(
+                        'Proyecto: ${nombreProyecto ?? ''}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                      Text(
+                        'Comprador: ${_orderData.firstWhere((data) => data['orden'] == orden)['comprador'] ?? ''}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: _buildSwitchField(orden),
+                ),
+              ],
+            ),
+            subtitle: _showDetailsMap[orden] ?? false
+                ? Column(
+                    children: _buildProductDetailsWithInputs(productos, orden),
+                  )
+                : null,
+            onTap: () {
+              setState(() {
+                _showDetailsMap[orden] = !(_showDetailsMap[orden] ?? false);
+              });
             },
           ),
         ),
@@ -400,7 +428,7 @@ List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) 
     return productos.map<Widget>((producto) {
       String productName = producto['nombre'];
       int cantidadMaxima = producto['cantidad'];
-      int? cantidad = _cantidadesRecogidas[orden]?[productName];
+      int cantidad = _cantidadesRecogidas[orden]?[productName] ?? 0;
       
       return Material(
         color: Colors.transparent,
@@ -416,7 +444,6 @@ List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) 
               } else {
                 _cantidadesRecogidas[orden]![productName] = 0;
               }
-              // Verificar cantidades después de actualizar
               _verificarCantidadesCompletas(orden, productos);
             });
           },
@@ -447,9 +474,7 @@ List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) 
                       FilteringTextInputFormatter.digitsOnly
                     ],
                     controller: TextEditingController(
-                      text: (cantidad != null && cantidad >= 0) 
-                          ? cantidad.toString() 
-                          : producto['cantidad'].toString(),
+                      text: cantidad.toString(),
                     ),
                     onChanged: (value) {
                       int? inputValue = int.tryParse(value);
@@ -489,7 +514,6 @@ List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) 
                             _cantidadesRecogidas[orden]![productName] = inputValue;
                           });
                         }
-                        // Verificar cantidades después de cada cambio
                         _verificarCantidadesCompletas(orden, productos);
                       }
                     },
