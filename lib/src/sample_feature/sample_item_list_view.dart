@@ -426,10 +426,28 @@ Future<bool> hasFinalizedRecolecta(int motoristaId) async {
   });
 }
 
-  Future<void> _refreshData() async {
-    await _fetchData();
-    await _checkAndShowMileageDialog(); // Vuelve a verificar el diálogo al hacer refresh
+Future<void> _updateMotoristaData() async {
+  final url = Uri.parse('$baseUrl/recolectaenc/UpdateByMotoristaId/${UserSession.motoristaId}');
+  final headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ${UserSession.token}',
+  };
+
+  try {
+    final response = await http.put(url, headers: headers);
+    if (response.statusCode != 200) {
+      showError('Error al actualizar datos del motorista: ${response.body}');
+    }
+  } catch (e) {
+    showError('Error en la actualización: $e');
   }
+}
+
+Future<void> _refreshData() async {
+  await _updateMotoristaData(); // Primero actualizamos los datos del motorista
+  await _fetchData();
+  await _checkAndShowMileageDialog();
+}
 
   @override
   Widget build(BuildContext context) {

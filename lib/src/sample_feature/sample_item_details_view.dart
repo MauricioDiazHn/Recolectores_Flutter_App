@@ -407,7 +407,7 @@ List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) 
                 FilteringTextInputFormatter.digitsOnly
               ],
               controller: TextEditingController(
-                text: (cantidad != null && cantidad > 0) 
+                text: (cantidad != null && cantidad >= 0) 
                     ? cantidad.toString() 
                     : producto['cantidad'].toString(),
               ),
@@ -415,7 +415,7 @@ List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) 
                 int? inputValue = int.tryParse(value);
                 if (inputValue != null) {
                   if (inputValue > cantidadMaxima) {
-                    // Mostrar mensaje de error
+                    // Mostrar mensaje de error cuando excede el máximo
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('La cantidad no puede ser mayor a la cantidad original'),
@@ -426,19 +426,31 @@ List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) 
                     setState(() {
                       _cantidadesRecogidas[orden]![productName] = cantidadMaxima;
                     });
-                    // Actualizar el controlador del TextFormField
+                    // Actualizar el controlador
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                       if (mounted) {
                         TextEditingController controller = TextEditingController(text: cantidadMaxima.toString());
                         setState(() {
-                          // Actualizar el widget con el nuevo controlador
                           controller.selection = TextSelection.fromPosition(
                             TextPosition(offset: controller.text.length),
                           );
                         });
                       }
                     });
+                  } else if (inputValue < 0) {
+                    // Mostrar mensaje de error cuando es negativo
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('La cantidad no puede ser menor a 0'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    // Establecer el valor a 0
+                    setState(() {
+                      _cantidadesRecogidas[orden]![productName] = 0;
+                    });
                   } else {
+                    // Valor válido entre 0 y cantidadMaxima
                     setState(() {
                       _cantidadesRecogidas[orden]![productName] = inputValue;
                     });
