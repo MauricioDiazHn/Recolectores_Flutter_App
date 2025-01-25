@@ -65,37 +65,39 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
 
   Future<void> _initializeState() async {
     try {
+      List<Map<String, dynamic>> allOrdenes = [];
 
-    List<Map<String, dynamic>> allOrdenes = [];
-
-    for (var item in widget.items) {
-      final ordenes = await _fetchOrderData(item.idRecolecta);
-      allOrdenes.addAll(ordenes);
-    }
-    
-      setState(() {
-      _orderData = allOrdenes;
-      _initializeSwitchStates(allOrdenes);
-      _initializeDetailsVisibility(allOrdenes);
-
-      for (var ordenData in allOrdenes) {
-        final int orden = ordenData['orden'];
-        _cantidadRecogidaMap[orden] = 0;
-        
-        // Inicializar el mapa para esta orden
-        _cantidadesRecogidas[orden] = {};
-        
-        // Iterar sobre los productos y establecer las cantidades ingresadas
-        for (var producto in ordenData['productos']) {
-          String nombreProducto = producto['nombre'];
-          int cantidadInicial = producto['cantIngresada'] ?? producto['cantidad'];
-          _cantidadesRecogidas[orden]![nombreProducto] = cantidadInicial;
-          
-          String controllerKey = '${orden}_$nombreProducto';
-          _controllers[controllerKey] = TextEditingController(text: cantidadInicial.toString());
-        }
+      for (var item in widget.items) {
+        final ordenes = await _fetchOrderData(item.idRecolecta);
+        allOrdenes.addAll(ordenes);
       }
-    });
+      
+      setState(() {
+        _orderData = allOrdenes;
+        _initializeSwitchStates(allOrdenes);
+        _initializeDetailsVisibility(allOrdenes);
+
+        for (var ordenData in allOrdenes) {
+          final int orden = ordenData['orden'];
+          _cantidadRecogidaMap[orden] = 0;
+          
+          // Inicializar el mapa para esta orden
+          _cantidadesRecogidas[orden] = {};
+          
+          // Iterar sobre los productos y establecer las cantidades ingresadas
+          for (var producto in ordenData['productos']) {
+            String nombreProducto = producto['nombre'];
+            int cantidadInicial = producto['cantIngresada'] ?? producto['cantidad'];
+            _cantidadesRecogidas[orden]![nombreProducto] = cantidadInicial;
+            
+            String controllerKey = '${orden}_$nombreProducto';
+            _controllers[controllerKey] = TextEditingController(text: cantidadInicial.toString());
+          }
+          
+          // Verificar el estado inicial del switch basado en las cantidades
+          _verificarCantidadesCompletas(orden, ordenData['productos']);
+        }
+      });
     } catch (e) {
       showError('Error al inicializar los datos: $e');
     }
@@ -103,8 +105,8 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
 
   void _initializeSwitchStates(List<Map<String, dynamic>> ordenes) {
     for (var ordenData in ordenes) {
-      _isApprovedMap[ordenData['orden']] =
-          widget.items.first.estado.toLowerCase() == 'parcial';
+      // Establecer el estado del switch basado en el estado del JSON
+      _isApprovedMap[ordenData['orden']] = widget.items.first.estado.toLowerCase() == 'recolectada';
     }
   }
 
@@ -417,22 +419,7 @@ List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) 
   }
 
   void _verificarCantidadesCompletas(int orden, List<dynamic> productos) {
-    bool todasCantidadesMaximas = true;
-    
-    for (var producto in productos) {
-      String productName = producto['nombre'];
-      int cantidadMaxima = producto['cantidad'];
-      int cantidadActual = _cantidadesRecogidas[orden]?[productName] ?? 0;
-      
-      if (cantidadActual != cantidadMaxima) {
-        todasCantidadesMaximas = false;
-        break;
-      }
-    }
-
-    setState(() {
-      _isApprovedMap[orden] = todasCantidadesMaximas;
-    });
+    // Eliminamos esta función ya que el estado solo dependerá del JSON inicial
   }
 
   List<Widget> _buildProductDetailsWithInputs(
@@ -456,12 +443,19 @@ List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) 
           splashColor: Colors.green.withOpacity(0.3),
           onTap: () {
             setState(() {
+              // Actualizar el valor en _cantidadesRecogidas
               if (_cantidadesRecogidas[orden]?[productName] == null || 
                   _cantidadesRecogidas[orden]?[productName] == 0) {
                 _cantidadesRecogidas[orden]![productName] = cantidadMaxima;
+                // Actualizar el controlador
+                _controllers[controllerKey]?.text = cantidadMaxima.toString();
               } else {
                 _cantidadesRecogidas[orden]![productName] = 0;
+                // Actualizar el controlador
+                _controllers[controllerKey]?.text = "0";
               }
+              
+              // Verificar si todas las cantidades están completas
               _verificarCantidadesCompletas(orden, productos);
             });
           },
@@ -588,8 +582,7 @@ List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) 
     return Row(
       children: [
         Switch(
-          value: _isApprovedMap[orden] ??
-              false, //  Ajusta la lógica para el estado del switch
+          value: _isApprovedMap[orden] ?? false,
           onChanged: (value) {
             setState(() {
               _isApprovedMap[orden] = value;
@@ -603,8 +596,7 @@ List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) 
         Text(
           (_isApprovedMap[orden] ?? false) ? 'Completo' : 'Parcial',
           style: TextStyle(
-            color:
-                (_isApprovedMap[orden] ?? false) ? Colors.green : Colors.yellow,
+            color: (_isApprovedMap[orden] ?? false) ? Colors.green : Colors.yellow,
             fontWeight: FontWeight.bold,
           ),
         ).animate().fade(duration: 300.ms).scale(delay: 100.ms),

@@ -524,24 +524,28 @@ Future<void> _refreshData() async {
 
     List<Widget> widgets = [];
     providerMap.forEach((proveedor, items) {
-      // Determinar el estado general del proveedor basado en sus items
-      String estadoGeneral = items.first.estado; // Tomamos el estado del primer item
+      String estadoGeneral = items.first.estado;
+      String estadoLower = estadoGeneral.toLowerCase();
 
       widgets.add(
         Container(
           decoration: BoxDecoration(
-            color: estadoGeneral.toLowerCase() == 'recolectada'
+            color: estadoLower == 'recolectada'
                 ? Colors.greenAccent.withOpacity(0.2)
-                : estadoGeneral.toLowerCase() == 'en ruta'
+                : estadoLower == 'en ruta'
                     ? Colors.yellow.withOpacity(0.2)
-                    : Colors.transparent,
+                    : estadoLower == 'incompleta' || estadoLower == 'fallida'
+                        ? Colors.red.withOpacity(0.2)
+                        : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: estadoGeneral.toLowerCase() == 'recolectada'
+              color: estadoLower == 'recolectada'
                   ? Colors.green
-                  : estadoGeneral.toLowerCase() == 'en ruta'
+                  : estadoLower == 'en ruta'
                       ? Colors.yellow.shade700
-                      : Colors.black54,
+                      : estadoLower == 'incompleta' || estadoLower == 'fallida'
+                          ? Colors.red
+                          : Colors.black54,
               width: 2,
             ),
           ),
@@ -551,11 +555,13 @@ Future<void> _refreshData() async {
               'Proveedor: $proveedor',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: estadoGeneral.toLowerCase() == 'recolectada'
+                color: estadoLower == 'recolectada'
                     ? const Color.fromARGB(255, 139, 187, 142)
-                    : estadoGeneral.toLowerCase() == 'en ruta'
+                    : estadoLower == 'en ruta'
                         ? const Color.fromARGB(255, 202, 201, 110)
-                        : const Color.fromARGB(240, 255, 255, 255),
+                        : estadoLower == 'incompleta' || estadoLower == 'fallida'
+                            ? const Color.fromARGB(255, 187, 139, 139)
+                            : const Color.fromARGB(240, 255, 255, 255),
               ),
             ),
             subtitle: Text('Total de Órdenes: ${items.length}'),
