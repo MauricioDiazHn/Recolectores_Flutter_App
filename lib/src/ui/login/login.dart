@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:recolectores_app_flutter/src/sample_feature/api_constants.dart';
-import 'package:recolectores_app_flutter/src/sample_feature/sample_item_list_view.dart';
+import 'package:recolectores_app_flutter/src/recolectas/api_constants.dart';
+import 'package:recolectores_app_flutter/src/recolectas/recolectas_view.dart';
 import 'package:recolectores_app_flutter/src/ui/create__account/create_account.dart';
 import 'package:recolectores_app_flutter/src/ui/rounded_btn/rounded_btn.dart';
 import 'package:http/http.dart' as http;
@@ -88,7 +88,7 @@ class _LoginState extends State<Login> {
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const SampleItemListView()),
+          MaterialPageRoute(builder: (context) => const RecolectasView()),
         );
       } else {
         showError('Error al autenticar: Credenciales Invalidas');

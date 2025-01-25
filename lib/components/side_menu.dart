@@ -5,6 +5,7 @@ import 'package:recolectores_app_flutter/models/rive_asset.dart';
 import 'package:recolectores_app_flutter/src/ui/login/login.dart';
 import 'package:recolectores_app_flutter/utils/rive_utils.dart';
 import 'package:rive/rive.dart';
+import 'package:recolectores_app_flutter/src/recolectas/recolectas_view.dart';
 
 class SideMenu extends StatefulWidget {
   const SideMenu({super.key});

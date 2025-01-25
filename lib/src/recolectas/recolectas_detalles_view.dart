@@ -4,25 +4,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:recolectores_app_flutter/models/rive_asset.dart';
 import 'package:recolectores_app_flutter/components/side_menu.dart';
-import 'package:recolectores_app_flutter/src/sample_feature/api_constants.dart';
-import 'package:recolectores_app_flutter/src/sample_feature/sample_item_list_view.dart';
+import 'package:recolectores_app_flutter/src/recolectas/api_constants.dart';
 import 'package:recolectores_app_flutter/src/ui/login/login.dart';
 import 'package:flutter/services.dart';
+import 'package:recolectores_app_flutter/src/recolectas/recolectas_view.dart';
 
-class SampleItemDetailsView extends StatefulWidget {
+class RecolectasDetallesView extends StatefulWidget {
   final List<RecolectaItem> items;
 
-  const SampleItemDetailsView({
+  const RecolectasDetallesView({
     Key? key,
     required this.items,
   }) : super(key: key);
 
   @override
-  State<SampleItemDetailsView> createState() =>
-      _RecolectaItemDetailsViewState();
+  State<RecolectasDetallesView> createState() =>
+      _RecolectasDetallesViewState();
 }
 
-class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
+class _RecolectasDetallesViewState extends State<RecolectasDetallesView> {
   void showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -275,7 +275,7 @@ class _RecolectaItemDetailsViewState extends State<SampleItemDetailsView> {
                   
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (context) => const SampleItemListView()), // Aquí ajusta el widget de inicio
+                    MaterialPageRoute(builder: (context) => const RecolectasView()),
                   );
 
                 } catch (e) {

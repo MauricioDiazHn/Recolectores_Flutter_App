@@ -5,8 +5,7 @@ import 'package:recolectores_app_flutter/models/rive_asset.dart';
 import 'package:recolectores_app_flutter/src/ui/login/login.dart';
 
 import '../settings/settings_view.dart';
-import 'sample_item.dart';
-import 'sample_item_details_view.dart';
+import 'recolectas_detalles_view.dart';
 import 'package:rive/rive.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -14,22 +13,16 @@ import 'dart:io';
 import 'api_constants.dart';
 
 /// Displays a list of SampleItems.
-class SampleItemListView extends StatefulWidget {
-  const SampleItemListView({
+class RecolectasView extends StatefulWidget {
+  const RecolectasView({
     super.key,
-    this.items = const [SampleItem(1), SampleItem(2), SampleItem(3)],
   });
 
   static const routeName = '/';
 
-  final List<SampleItem> items;
-
   @override
-  State<SampleItemListView> createState() => _SampleItemListViewState();
+  State<RecolectasView> createState() => _RecolectasViewState();
 }
-
-
-
 
 class RecolectaItem {
   final int idRecolecta;
@@ -112,9 +105,7 @@ class RecolectaItem {
   }
 }
 
-class _SampleItemListViewState extends State<SampleItemListView> {
-
-  
+class _RecolectasViewState extends State<RecolectasView> {
   bool isLoading = false;
   bool _showMileageDialog = !UserSession.hasShownMileageDialog;
   TextEditingController _mileageController = TextEditingController();
@@ -133,16 +124,14 @@ class _SampleItemListViewState extends State<SampleItemListView> {
     );
   }
 
-  
+  @override
+  void initState() {
+    super.initState();
+    _checkAndShowMileageDialog(); // Verificar y mostrar el diálogo al iniciar
+    _fetchData();
+  }
 
-@override
-void initState() {
-  super.initState();
-  _checkAndShowMileageDialog(); // Verificar y mostrar el diálogo al iniciar
-  _fetchData();
-}
-
-Future<void> _fetchData() async {
+  Future<void> _fetchData() async {
     setState(() {
       isLoading = true;
     });
@@ -215,8 +204,8 @@ Future<void> _fetchData() async {
                 onPressed: () {
                   if (_mileageController.text.isNotEmpty) {
                     setState(() {
-                  final kmInicial = int.tryParse(_mileageController.text) ?? 0;
-                    _submitKmInicial(UserSession.motoristaId ?? 0, kmInicial, 'En Ruta');
+                      final kmInicial = int.tryParse(_mileageController.text) ?? 0;
+                      _submitKmInicial(UserSession.motoristaId ?? 0, kmInicial, 'En Ruta');
                       _showMileageDialog = false;
                       UserSession.hasShownMileageDialog = true; // Actualiza el flag
                     });
@@ -235,28 +224,28 @@ Future<void> _fetchData() async {
   }
 
   Future<void> _submitKmInicial(int motoristaId, int kmInicial, String estado) async {
-  final url = Uri.parse('$baseUrl/recolectaenc/updateKmInicialAndStatus');
-  final headers = {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer ${UserSession.token}', // Asegúrate de tener el token
-  };
-  final body = json.encode({
-    'MotoristaId': motoristaId,
-    'KmInicial': kmInicial,
-    'Estado': estado,
-  });
+    final url = Uri.parse('$baseUrl/recolectaenc/updateKmInicialAndStatus');
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${UserSession.token}', // Asegúrate de tener el token
+    };
+    final body = json.encode({
+      'MotoristaId': motoristaId,
+      'KmInicial': kmInicial,
+      'Estado': estado,
+    });
 
-  try {
-    final response = await http.post(url, headers: headers, body: body);
-    if (response.statusCode == 200) {
-      print("Actualización exitosa: ${response.body}");
-    } else {
-      showError('Error al actualizar: ${response.body}');
+    try {
+      final response = await http.post(url, headers: headers, body: body);
+      if (response.statusCode == 200) {
+        print("Actualización exitosa: ${response.body}");
+      } else {
+        showError('Error al actualizar: ${response.body}');
+      }
+    } catch (e) {
+      showError('Error: $e');
     }
-  } catch (e) {
-    showError('Error: $e');
   }
-}
 
   void _showFinalizeDialog() {
     showDialog(
@@ -289,8 +278,8 @@ Future<void> _fetchData() async {
               ElevatedButton(
                 onPressed: () {
                   if (_mileageController.text.isNotEmpty) {
-                  final kmFinal = int.tryParse(_mileageController.text) ?? 0;
-                  _showConfirmationDialog(kmFinal);
+                    final kmFinal = int.tryParse(_mileageController.text) ?? 0;
+                    _showConfirmationDialog(kmFinal);
                   }
                 },
                 child: const Text('Aceptar'),
@@ -332,59 +321,60 @@ Future<void> _fetchData() async {
   }
 
   Future<bool> hasEnteredCurrentMileage(int motoristaId) async {
-  final url = Uri.parse('$baseUrl/recolectaenc/$motoristaId/currentMileage?checkFinalMileage=false');
-  final headers = {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer ${UserSession.token}', // Asegúrate de tener el token
-  };
+    final url = Uri.parse('$baseUrl/recolectaenc/$motoristaId/currentMileage?checkFinalMileage=false');
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${UserSession.token}', // Asegúrate de tener el token
+    };
 
-  try {
-    final response = await http.get(url, headers: headers);
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body) as bool;
-      return data;
-    } else {
-      showError('Error al verificar el kilometraje actual: ${response.body}');
+    try {
+      final response = await http.get(url, headers: headers);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as bool;
+        return data;
+      } else {
+        showError('Error al verificar el kilometraje actual: ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      showError('Error: $e');
       return false;
     }
-  } catch (e) {
-    showError('Error: $e');
-    return false;
   }
-}
 
-Future<bool> hasFinalizedRecolecta(int motoristaId) async {
-  final url = Uri.parse('$baseUrl/recolectaenc/$motoristaId/currentMileage?checkFinalMileage=true');
-  final headers = {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer ${UserSession.token}', // Asegúrate de tener el token
-  };
+  Future<bool> hasFinalizedRecolecta(int motoristaId) async {
+    final url = Uri.parse('$baseUrl/recolectaenc/$motoristaId/currentMileage?checkFinalMileage=true');
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${UserSession.token}', // Asegúrate de tener el token
+    };
 
-  try {
-    final response = await http.get(url, headers: headers);
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body) as bool;
-      return data;
-    } else {
-      showError('Error al verificar el estado de finalización: ${response.body}');
+    try {
+      final response = await http.get(url, headers: headers);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as bool;
+        return data;
+      } else {
+        showError('Error al verificar el estado de finalización: ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      showError('Error: $e');
       return false;
     }
-  } catch (e) {
-    showError('Error: $e');
-    return false;
   }
-}
+
   Future<void> checkMileageStatus() async {
-  int motoristaId = UserSession.motoristaId ?? 0;
+    int motoristaId = UserSession.motoristaId ?? 0;
 
-  bool hasCurrentMileage = await hasEnteredCurrentMileage(motoristaId);
-  bool hasFinalized = await hasFinalizedRecolecta(motoristaId);
+    bool hasCurrentMileage = await hasEnteredCurrentMileage(motoristaId);
+    bool hasFinalized = await hasFinalizedRecolecta(motoristaId);
 
-  setState(() {
-    _showMileageDialog = !hasCurrentMileage;
-    _showFinalizeButton = !hasFinalized;
-  });
-}
+    setState(() {
+      _showMileageDialog = !hasCurrentMileage;
+      _showFinalizeButton = !hasFinalized;
+    });
+  }
 
   Future<void> _checkAndShowMileageDialog() async {
     await checkMileageStatus();
@@ -396,62 +386,61 @@ Future<bool> hasFinalizedRecolecta(int motoristaId) async {
   }
 
   Future<void> _finalizeAndLogout(int motoristaId, int kmFinal, String estado) async {
-  final url = Uri.parse('$baseUrl/recolectaenc/updateKmFinalAndStatus');
-  final headers = {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer ${UserSession.token}', // Asegúrate de tener el token
-  };
-  final body = json.encode({
-    'MotoristaId': motoristaId,
-    'KmFinal': kmFinal,
-    'Estado': estado,
-  });
+    final url = Uri.parse('$baseUrl/recolectaenc/updateKmFinalAndStatus');
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${UserSession.token}', // Asegúrate de tener el token
+    };
+    final body = json.encode({
+      'MotoristaId': motoristaId,
+      'KmFinal': kmFinal,
+      'Estado': estado,
+    });
 
-  try {
-    final response = await http.post(url, headers: headers, body: body);
-    if (response.statusCode == 200) {
-      print("Actualización exitosa: ${response.body}");
-    } else {
-      showError('Error al actualizar: ${response.body}');
+    try {
+      final response = await http.post(url, headers: headers, body: body);
+      if (response.statusCode == 200) {
+        print("Actualización exitosa: ${response.body}");
+      } else {
+        showError('Error al actualizar: ${response.body}');
+      }
+    } catch (e) {
+      showError('Error: $e');
     }
-  } catch (e) {
-    showError('Error: $e');
+
+    // Lógica para finalizar y cerrar sesión
+    print("Kilometraje final ingresado: $kmFinal");
+
+    setState(() {
+      _showFinalizeButton = false;
+    });
   }
 
-  // Lógica para finalizar y cerrar sesión
-  print("Kilometraje final ingresado: $kmFinal");
+  Future<void> _updateMotoristaData() async {
+    final url = Uri.parse('$baseUrl/recolectaenc/UpdateByMotoristaId/${UserSession.motoristaId}');
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${UserSession.token}',
+    };
 
-  setState(() {
-    _showFinalizeButton = false;
-  });
-}
-
-Future<void> _updateMotoristaData() async {
-  final url = Uri.parse('$baseUrl/recolectaenc/UpdateByMotoristaId/${UserSession.motoristaId}');
-  final headers = {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer ${UserSession.token}',
-  };
-
-  try {
-    final response = await http.put(url, headers: headers);
-    if (response.statusCode != 200) {
-      showError('Error al actualizar datos del motorista: ${response.body}');
+    try {
+      final response = await http.put(url, headers: headers);
+      if (response.statusCode != 200) {
+        showError('Error al actualizar datos del motorista: ${response.body}');
+      }
+    } catch (e) {
+      showError('Error en la actualización: $e');
     }
-  } catch (e) {
-    showError('Error en la actualización: $e');
   }
-}
 
-Future<void> _refreshData() async {
-  await _updateMotoristaData(); // Primero actualizamos los datos del motorista
-  await _fetchData();
-  await _checkAndShowMileageDialog();
-}
+  Future<void> _refreshData() async {
+    await _updateMotoristaData(); // Primero actualizamos los datos del motorista
+    await _fetchData();
+    await _checkAndShowMileageDialog();
+  }
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       key: _scaffoldKey, // Agregado para manejar el menú lateral
       appBar: AppBar(
@@ -495,10 +484,6 @@ Future<void> _refreshData() async {
           icon: _isButtonExpanded ? const Icon(Icons.check) : null,
         ),
       ) : null,
-
-
-
-
     );
   }
   
@@ -569,7 +554,7 @@ Future<void> _refreshData() async {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => SampleItemDetailsView(items: items),
+                  builder: (context) => RecolectasDetallesView(items: items),
                 ),
               );
             },
