@@ -441,49 +441,62 @@ class _RecolectasViewState extends State<RecolectasView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      key: _scaffoldKey, // Agregado para manejar el menú lateral
-      appBar: AppBar(
-        title: const Text('Recolectas / Pedidos'),
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () {
-            _scaffoldKey.currentState?.openDrawer(); // Abre el menú lateral
-          },
-        ),
-      ),
-      drawer: const SideMenu(), // Aquí va el menú lateral
-      body: Stack(
-        children: [
-          Opacity(
-            opacity: _showMileageDialog ? 0.2 : 1.0, // Opacidad variable
-            child: RefreshIndicator(
-              onRefresh: _refreshData,
-              child: _buildMainContent()
-            ),
+    return WillPopScope(
+      onWillPop: () async {
+        // Mostrar un mensaje al usuario
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se permite regresar en esta pantalla'),
+            duration: Duration(seconds: 2),
           ),
-        ],
-      ),
-      floatingActionButton: _showFinalizeButton ? AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        width: _isButtonExpanded ? 200.0 : 60.0,
-        height: 60.0,
-        child: FloatingActionButton.extended(
-          onPressed: () {
-            setState(() {
-              _isButtonExpanded = !_isButtonExpanded;
-            });
-            if (!_isButtonExpanded) {
-              _showFinalizeDialog();
-            }
-          },
-          backgroundColor: const Color.fromARGB(255, 0, 66, 68),
-          label: _isButtonExpanded
-              ? const Text('FINALIZAR')
-              : const Icon(Icons.check),
-          icon: _isButtonExpanded ? const Icon(Icons.check) : null,
+        );
+        // Seguimos retornando false para evitar la navegación hacia atrás
+        return false;
+      },
+      child: Scaffold(
+        key: _scaffoldKey, // Agregado para manejar el menú lateral
+        appBar: AppBar(
+          title: const Text('Recolectas / Pedidos'),
+          leading: IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () {
+              _scaffoldKey.currentState?.openDrawer(); // Abre el menú lateral
+            },
+          ),
         ),
-      ) : null,
+        drawer: const SideMenu(), // Aquí va el menú lateral
+        body: Stack(
+          children: [
+            Opacity(
+              opacity: _showMileageDialog ? 0.2 : 1.0, // Opacidad variable
+              child: RefreshIndicator(
+                onRefresh: _refreshData,
+                child: _buildMainContent()
+              ),
+            ),
+          ],
+        ),
+        floatingActionButton: _showFinalizeButton ? AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          width: _isButtonExpanded ? 200.0 : 60.0,
+          height: 60.0,
+          child: FloatingActionButton.extended(
+            onPressed: () {
+              setState(() {
+                _isButtonExpanded = !_isButtonExpanded;
+              });
+              if (!_isButtonExpanded) {
+                _showFinalizeDialog();
+              }
+            },
+            backgroundColor: const Color.fromARGB(255, 0, 66, 68),
+            label: _isButtonExpanded
+                ? const Text('FINALIZAR')
+                : const Icon(Icons.check),
+            icon: _isButtonExpanded ? const Icon(Icons.check) : null,
+          ),
+        ) : null,
+      ),
     );
   }
   
@@ -508,29 +521,48 @@ class _RecolectasViewState extends State<RecolectasView> {
     }
 
     List<Widget> widgets = [];
-    providerMap.forEach((proveedor, items) {
-      String estadoGeneral = items.first.estado;
-      String estadoLower = estadoGeneral.toLowerCase();
+    providerMap.forEach((proveedor, proveedorItems) {
+      // Verificar el estado de todas las órdenes del proveedor
+      bool todasRecolectadas = proveedorItems.every(
+        (item) => item.estado.toLowerCase() == 'recolectada'
+      );
+      bool algunaEnRuta = proveedorItems.any(
+        (item) => item.estado.toLowerCase() == 'en ruta'
+      );
+      bool algunaFallida = proveedorItems.any(
+        (item) => ['incompleta', 'fallida'].contains(item.estado.toLowerCase())
+      );
+
+      // Determinar el color basado en los estados
+      Color backgroundColor;
+      Color borderColor;
+      Color textColor;
+
+      if (todasRecolectadas) {
+        backgroundColor = Colors.greenAccent.withOpacity(0.2);
+        borderColor = Colors.green;
+        textColor = const Color.fromARGB(255, 139, 187, 142);
+      } else if (algunaFallida) {
+        backgroundColor = Colors.red.withOpacity(0.2);
+        borderColor = Colors.red;
+        textColor = const Color.fromARGB(255, 187, 139, 139);
+      } else if (algunaEnRuta || !todasRecolectadas) {
+        backgroundColor = Colors.yellow.withOpacity(0.2);
+        borderColor = Colors.yellow.shade700;
+        textColor = const Color.fromARGB(255, 202, 201, 110);
+      } else {
+        backgroundColor = Colors.transparent;
+        borderColor = Colors.black54;
+        textColor = const Color.fromARGB(240, 255, 255, 255);
+      }
 
       widgets.add(
         Container(
           decoration: BoxDecoration(
-            color: estadoLower == 'recolectada'
-                ? Colors.greenAccent.withOpacity(0.2)
-                : estadoLower == 'en ruta'
-                    ? Colors.yellow.withOpacity(0.2)
-                    : estadoLower == 'incompleta' || estadoLower == 'fallida'
-                        ? Colors.red.withOpacity(0.2)
-                        : Colors.transparent,
+            color: backgroundColor,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: estadoLower == 'recolectada'
-                  ? Colors.green
-                  : estadoLower == 'en ruta'
-                      ? Colors.yellow.shade700
-                      : estadoLower == 'incompleta' || estadoLower == 'fallida'
-                          ? Colors.red
-                          : Colors.black54,
+              color: borderColor,
               width: 2,
             ),
           ),
@@ -540,21 +572,15 @@ class _RecolectasViewState extends State<RecolectasView> {
               'Proveedor: $proveedor',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: estadoLower == 'recolectada'
-                    ? const Color.fromARGB(255, 139, 187, 142)
-                    : estadoLower == 'en ruta'
-                        ? const Color.fromARGB(255, 202, 201, 110)
-                        : estadoLower == 'incompleta' || estadoLower == 'fallida'
-                            ? const Color.fromARGB(255, 187, 139, 139)
-                            : const Color.fromARGB(240, 255, 255, 255),
+                color: textColor,
               ),
             ),
-            subtitle: Text('Total de Órdenes: ${items.length}'),
+            subtitle: Text('Total de Órdenes: ${proveedorItems.length}'),
             onTap: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => RecolectasDetallesView(items: items),
+                  builder: (context) => RecolectasDetallesView(items: proveedorItems),
                 ),
               );
             },
