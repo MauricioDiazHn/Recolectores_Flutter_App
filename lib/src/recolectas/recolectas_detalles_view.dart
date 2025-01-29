@@ -87,7 +87,14 @@ class _RecolectasDetallesViewState extends State<RecolectasDetallesView> {
           // Iterar sobre los productos y establecer las cantidades ingresadas
           for (var producto in ordenData['productos']) {
             String nombreProducto = producto['nombre'];
-            int cantidadInicial = producto['cantIngresada'] ?? producto['cantidad'];
+            // Usar cantIngresada si existe, si no, usar la cantidad original
+            int cantidadInicial;
+            if (producto['cantIngresada'] != null) {
+              cantidadInicial = producto['cantIngresada'];
+            } else {
+              cantidadInicial = producto['cantidad'];
+            }
+            
             _cantidadesRecogidas[orden]![nombreProducto] = cantidadInicial;
             
             String controllerKey = '${orden}_$nombreProducto';
@@ -105,8 +112,9 @@ class _RecolectasDetallesViewState extends State<RecolectasDetallesView> {
 
   void _initializeSwitchStates(List<Map<String, dynamic>> ordenes) {
     for (var ordenData in ordenes) {
-      // Establecer el estado del switch basado en el estado del JSON
-      _isApprovedMap[ordenData['orden']] = widget.items.first.estado.toLowerCase() == 'recolectada';
+      // El switch se basa en el estado de la orden
+      _isApprovedMap[ordenData['orden']] = 
+          ordenData['estado']?.toLowerCase() == 'recolectada';
     }
   }
 
@@ -125,38 +133,31 @@ class _RecolectasDetallesViewState extends State<RecolectasDetallesView> {
       'Authorization': 'Bearer $token',
     };
 
-      try {
-        final response = await http.get(Uri.parse(url), headers: headers);
+    try {
+      final response = await http.get(Uri.parse(url), headers: headers);
 
-        if (response.statusCode == 200) {
-          final List<dynamic> data = json.decode(response.body);
-          return data.map((item) {
-            final productos = (item['productos'] as List<dynamic>);
-            int cantidadTotal = 0;
-            for (var producto in productos) { // Itera sobre la lista de productos
-              cantidadTotal += producto['cantidad'] as int;
-            }
-
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        
+        return [{
+          'orden': int.parse(data['ordenCompraId']),
+          'estado': data['estado'],
+          'nombreProyecto': data['nombreProyecto'],
+          'comprador': data['comprador'],
+          'productos': data['productos'].map((producto) {
             return {
-              'orden': item['ordenCompraId'],
-              'cantidad': cantidadTotal,
-              'nombreProyecto': item['nombreProyecto'],
-              'comprador': item['comprador'],
-              'productos': productos.map((producto) {
-                return {
-                  'nombre': producto['nombre'],
-                  'cantidad': producto['cantidad'],
-                  'cantIngresada': producto['cantIngresada'],
-                };
-              }).toList(),
+              'nombre': producto['nombre'],
+              'cantidad': producto['cantidad'],
+              'cantIngresada': producto['cantIngresada'],
             };
-          }).toList();
-        } else {
-          throw Exception('Error al obtener los detalles: ${response.body}');
-        }
-      } catch (e) {
-        throw Exception('Error de conexión: $e');
+          }).toList(),
+        }];
+      } else {
+        throw Exception('Error al obtener los detalles: ${response.body}');
       }
+    } catch (e) {
+      throw Exception('Error de conexión: $e');
+    }
   }
 
   @override
@@ -171,6 +172,8 @@ class _RecolectasDetallesViewState extends State<RecolectasDetallesView> {
 
   @override
   Widget build(BuildContext context) {
+    bool allDisabled = _allOrdersDisabled();
+
     return Scaffold(
       key: _scaffoldKey,
       drawer: const SideMenu(),
@@ -203,91 +206,20 @@ class _RecolectasDetallesViewState extends State<RecolectasDetallesView> {
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () async {
-                try {
-                  for (var item in widget.items) {
-                  final url = Uri.parse('$baseUrl/recolectaenc/${item.idRecolecta}');
-                  final token = UserSession.token; // Recuperar el token
-                  final headers = {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer $token',
-                  };
-
-                  final body = jsonEncode({
-                    'Estado': _isApproved ? 'Aprobado' : 'Pendiente',
-                    'Comentario': comentarioController.text,
-                    'FechaAceptacion': DateTime.now().toIso8601String()
-                  });
-
-                  final response = await http.put(
-                    url,
-                    headers: headers,
-                    body: body,
-                  );
-
-                  List<Map<String, dynamic>> detalles = [];
-
-                  // Iterar sobre los datos recogidos para preparar el JSON
-                  _orderData.forEach((ordenData) {
-                    int ordenCompraId = ordenData['orden'];
-                    ordenData['productos'].forEach((producto) {
-                      String nombreProducto = producto['nombre'];
-                      // Si no hay un valor ingresado, usar la cantidad original del producto
-                      int cantidadRecogida = _cantidadesRecogidas[ordenCompraId]?[nombreProducto] ?? 
-                                           producto['cantidad'];
-                      
-                      detalles.add({
-                        'ordenCompraId': ordenCompraId,
-                        'nombre': nombreProducto,
-                        'cantidad': cantidadRecogida,
-                        'estado': (_isApprovedMap[ordenCompraId] ?? false) ? 'Recolectado' : 'Pendiente'
-                      });
-                    });
-                  });
-
-                  final url2 = Uri.parse('$baseUrl/recolectaenc/detalles/update');
-
-                  final body2 = jsonEncode(detalles);
-
-                  final response2 = await http.put(
-                    url2,
-                    headers: headers,
-                    body: body2,
-                  );
-
-                    if (response.statusCode != 200 && response2.statusCode != 200) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error al guardar cambios para idRecolecta: ${item.idRecolecta} - ${response.body}'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      return; // Salir si hay un error
-                    }
-                  }
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Cambios guardados exitosamente para todos los registros.'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                  
+              onPressed: () {
+                if (allDisabled) {
+                  // Si todas las órdenes están deshabilitadas, solo navegar
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(builder: (context) => const RecolectasView()),
                   );
-
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
+                  return;
                 }
+                
+                // Si no están todas deshabilitadas, ejecutar la lógica de guardado
+                _guardarCambios();
               },
-              child: const Text('Guardar Cambios'),
+              child: const Text('Volver'),
             ),
           ],
         ),
@@ -297,25 +229,24 @@ class _RecolectasDetallesViewState extends State<RecolectasDetallesView> {
 
   List<Widget> _buildOrderDetails() {
     if (_orderData.isEmpty) {
-    return [Text('No hay datos disponibles.')];
-  }
-
-  List<Widget> widgets = [];
-
-  // Agrupar productos por orden de compra
-  Map<int, List<dynamic>> ordersMap = {};
-  for (var item in _orderData) {
-    if (!ordersMap.containsKey(item['orden'])) {
-      ordersMap[item['orden']] = [];
+      return [Text('No hay datos disponibles.')];
     }
-    ordersMap[item['orden']]!.addAll(item['productos']);
-  }
-  
 
-  // Crear widgets basados en los grupos de órdenes de compra
-  ordersMap.forEach((orden, productos) {
-    String? nombreProyecto = _orderData.firstWhere((data) => data['orden'] == orden)['nombreProyecto'];
-    widgets.add(
+    List<Widget> widgets = [];
+
+    // Agrupar productos por orden de compra
+    Map<int, List<dynamic>> ordersMap = {};
+    for (var item in _orderData) {
+      if (!ordersMap.containsKey(item['orden'])) {
+        ordersMap[item['orden']] = [];
+      }
+      ordersMap[item['orden']]!.addAll(item['productos']);
+    }
+
+    // Crear widgets basados en los grupos de órdenes de compra
+    ordersMap.forEach((orden, productos) {
+      String? nombreProyecto = _orderData.firstWhere((data) => data['orden'] == orden)['nombreProyecto'];
+      widgets.add(
         Card(
           child: ListTile(
             title: Row(
@@ -369,70 +300,18 @@ class _RecolectasDetallesViewState extends State<RecolectasDetallesView> {
 
     return widgets;
   }
-  
-List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) {
-    return items.map<Widget>((item) {
-    int cantidad = _cantidadesRecogidas[orden]!['cantidad'] ?? item.cantidad;
-      return Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Proveedor: ${item.proveedor}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  'Cantidad: ${item.cantidad}',
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(
-            width: 80,
-            child: TextFormField(
-              keyboardType: TextInputType.number,
-              inputFormatters: <TextInputFormatter>[
-                FilteringTextInputFormatter.digitsOnly
-              ],
-              controller: TextEditingController(
-                text: cantidad.toString(),
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _cantidadesRecogidas[orden]!['cantidad'] =
-                      int.tryParse(value) ?? 0;
-                });
-              },
-              decoration: const InputDecoration(
-                hintText: 'Cant. Rec.',
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 8),
-              ),
-            ),
-          ),
-        ],
-      );
-    }).toList();
-  }
 
-  void _verificarCantidadesCompletas(int orden, List<dynamic> productos) {
-    // Eliminamos esta función ya que el estado solo dependerá del JSON inicial
-  }
+  List<Widget> _buildProductDetailsWithInputs(List<dynamic> productos, int orden) {
+    // Obtener el estado de la orden actual
+    var ordenActual = _orderData.firstWhere((o) => o['orden'] == orden);
+    bool canEdit = _canEditOrder(ordenActual['estado'] ?? '');
 
-  List<Widget> _buildProductDetailsWithInputs(
-      List<dynamic> productos, int orden) {
     return productos.map<Widget>((producto) {
       String productName = producto['nombre'];
       int cantidadMaxima = producto['cantidad'];
       int cantidad = _cantidadesRecogidas[orden]?[productName] ?? 0;
       
-      // Crear una clave única para cada controlador
       String controllerKey = '${orden}_$productName';
-      
-      // Obtener o crear el controlador
       _controllers[controllerKey] ??= TextEditingController(text: cantidad.toString());
       
       return Material(
@@ -441,24 +320,19 @@ List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) 
           borderRadius: BorderRadius.circular(8),
           highlightColor: Colors.green.withOpacity(0.2),
           splashColor: Colors.green.withOpacity(0.3),
-          onTap: () {
+          onTap: canEdit ? () {
             setState(() {
-              // Actualizar el valor en _cantidadesRecogidas
               if (_cantidadesRecogidas[orden]?[productName] == null || 
                   _cantidadesRecogidas[orden]?[productName] == 0) {
                 _cantidadesRecogidas[orden]![productName] = cantidadMaxima;
-                // Actualizar el controlador
                 _controllers[controllerKey]?.text = cantidadMaxima.toString();
               } else {
                 _cantidadesRecogidas[orden]![productName] = 0;
-                // Actualizar el controlador
                 _controllers[controllerKey]?.text = "0";
               }
-              
-              // Verificar si todas las cantidades están completas
               _verificarCantidadesCompletas(orden, productos);
             });
-          },
+          } : null,
           child: Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(
@@ -481,6 +355,7 @@ List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) 
                 SizedBox(
                   width: 80,
                   child: TextFormField(
+                    enabled: canEdit,
                     keyboardType: TextInputType.number,
                     inputFormatters: <TextInputFormatter>[
                       FilteringTextInputFormatter.digitsOnly
@@ -535,68 +410,55 @@ List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) 
     }).toList();
   }
 
-  Widget _buildSwitchAndQuantity(int orden, int cantidadTotal) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _buildSwitchField(orden),
-        SizedBox(width: 8),
-        // Campo de texto para la cantidad recogida
-        if (!(_isApprovedMap[orden] ??
-            false)) // Mostrar solo si no está "Ready"
-          SizedBox(
-            width: 80, // Ajusta el ancho según tus necesidades
-            child: TextFormField(
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly
-              ], // Solo números
-              initialValue: _cantidadRecogidaMap[orden].toString(),
-              onChanged: (value) {
-                setState(() {
-                  _cantidadRecogidaMap[orden] = int.tryParse(value) ?? 0;
-                });
-              },
-              decoration: InputDecoration(
-                hintText: 'Cant. Rec.',
-                border: OutlineInputBorder(),
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 8), // Ajusta el padding
-              ),
-            ),
-          ),
-      ],
-    );
+  void _verificarCantidadesCompletas(int orden, List<dynamic> productos) {
+    bool todasCantidadesCompletas = productos.every((producto) {
+      String nombreProducto = producto['nombre'];
+      int cantidadOriginal = producto['cantidad'];
+      int cantidadIngresada = _cantidadesRecogidas[orden]?[nombreProducto] ?? 0;
+      return cantidadIngresada == cantidadOriginal;
+    });
+
+    setState(() {
+      _isApprovedMap[orden] = todasCantidadesCompletas;
+    });
   }
 
-  List<Widget> _buildProductDetails(List<dynamic> productos) {
-    return productos
-        .map((producto) => ListTile(
-              title: Text(producto['nombre']),
-              trailing: Text('Cantidad: ${producto['cantidad']}'),
-            ))
-        .toList();
+  bool _canEditOrder(String estado) {
+    estado = estado.toLowerCase();
+    return estado == 'pendiente' || estado == 'en ruta';
+  }
+
+  bool _allOrdersDisabled() {
+    return _orderData.every((orden) {
+      String estado = (orden['estado'] ?? '').toLowerCase();
+      return estado == 'recolectada' || estado == 'incompleta'|| estado == 'fallida';
+    });
   }
 
   Widget _buildSwitchField(int orden) {
+    var ordenData = _orderData.firstWhere((o) => o['orden'] == orden);
+    bool canEdit = _canEditOrder(ordenData['estado'] ?? '');
+    // Ahora verificamos exactamente el estado 'Recolectada'
+    bool isCompleted = ordenData['estado']?.toLowerCase() == 'recolectada';
+
     return Row(
       children: [
         Switch(
-          value: _isApprovedMap[orden] ?? false,
-          onChanged: (value) {
+          value: isCompleted,
+          onChanged: canEdit ? (value) {
             setState(() {
               _isApprovedMap[orden] = value;
             });
-          },
+          } : null,
           activeColor: Colors.green.withOpacity(0.8),
           inactiveThumbColor: Colors.yellow.withOpacity(0.8),
           inactiveTrackColor: Colors.yellow.shade200,
         ),
         const SizedBox(width: 10),
         Text(
-          (_isApprovedMap[orden] ?? false) ? 'Completo' : 'Parcial',
+          isCompleted ? 'Completo' : 'Parcial',
           style: TextStyle(
-            color: (_isApprovedMap[orden] ?? false) ? Colors.green : Colors.yellow,
+            color: isCompleted ? Colors.green : Colors.yellow,
             fontWeight: FontWeight.bold,
           ),
         ).animate().fade(duration: 300.ms).scale(delay: 100.ms),
@@ -638,5 +500,87 @@ List<Widget> _buildOrderDetailsWithInputs(List<RecolectaItem> items, int orden) 
             fontSize: 18), // Aumenta el tamaño del texto dentro del campo
       ),
     );
+  }
+
+  // Mover la lógica de guardado a un método separado
+  Future<void> _guardarCambios() async {
+    try {
+      for (var item in widget.items) {
+        final url = Uri.parse('$baseUrl/recolectaenc/${item.idRecolecta}');
+        final token = UserSession.token;
+        final headers = {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        };
+
+        final body = jsonEncode({
+          'Estado': _isApproved ? 'Aprobado' : 'Pendiente',
+          'Comentario': comentarioController.text,
+          'FechaAceptacion': DateTime.now().toIso8601String()
+        });
+
+        final response = await http.put(
+          url,
+          headers: headers,
+          body: body,
+        );
+
+        List<Map<String, dynamic>> detalles = [];
+
+        _orderData.forEach((ordenData) {
+          int ordenCompraId = ordenData['orden'];
+          ordenData['productos'].forEach((producto) {
+            String nombreProducto = producto['nombre'];
+            int cantidadRecogida = _cantidadesRecogidas[ordenCompraId]?[nombreProducto] ?? 
+                                 producto['cantidad'];
+            
+            detalles.add({
+              'ordenCompraId': ordenCompraId,
+              'nombre': nombreProducto,
+              'cantidad': cantidadRecogida,
+              'estado': (producto['cantidad'] == cantidadRecogida) ? 'Recolectado' : 'Incompleta'
+            });
+          });
+        });
+
+        final url2 = Uri.parse('$baseUrl/recolectaenc/detalles/update');
+        final body2 = jsonEncode(detalles);
+        final response2 = await http.put(
+          url2,
+          headers: headers,
+          body: body2,
+        );
+
+        if (response.statusCode != 200 && response2.statusCode != 200) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al guardar cambios para idRecolecta: ${item.idRecolecta} - ${response.body}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cambios guardados exitosamente para todos los registros.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const RecolectasView()),
+      );
+
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }
