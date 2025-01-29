@@ -219,7 +219,7 @@ class _RecolectasDetallesViewState extends State<RecolectasDetallesView> {
                 // Si no están todas deshabilitadas, ejecutar la lógica de guardado
                 _guardarCambios();
               },
-              child: const Text('Volver'),
+              child: const Text('Guardar'),
             ),
           ],
         ),
@@ -438,8 +438,13 @@ class _RecolectasDetallesViewState extends State<RecolectasDetallesView> {
   Widget _buildSwitchField(int orden) {
     var ordenData = _orderData.firstWhere((o) => o['orden'] == orden);
     bool canEdit = _canEditOrder(ordenData['estado'] ?? '');
-    // Ahora verificamos exactamente el estado 'Recolectada'
     bool isCompleted = ordenData['estado']?.toLowerCase() == 'recolectada';
+    bool isFailed = ordenData['estado']?.toLowerCase() == 'fallida';
+
+    // Definir colores
+    final completedColor = Colors.green.withOpacity(0.8); // Verde intenso
+    final partialColor = Colors.yellow.withOpacity(0.8); // Amarillo
+    final failedColor = const Color.fromARGB(255, 255, 82, 82); // Rojo intenso
 
     return Row(
       children: [
@@ -450,15 +455,15 @@ class _RecolectasDetallesViewState extends State<RecolectasDetallesView> {
               _isApprovedMap[orden] = value;
             });
           } : null,
-          activeColor: Colors.green.withOpacity(0.8),
-          inactiveThumbColor: Colors.yellow.withOpacity(0.8),
-          inactiveTrackColor: Colors.yellow.shade200,
+          activeColor: completedColor,
+          inactiveThumbColor: isCompleted ? completedColor : (isFailed ? failedColor : partialColor),
+          inactiveTrackColor: isCompleted ? completedColor.withOpacity(0.1) : (isFailed ? failedColor.withOpacity(0.5) : partialColor.withOpacity(0.1)),
         ),
         const SizedBox(width: 10),
         Text(
-          isCompleted ? 'Completo' : 'Parcial',
+          isCompleted ? 'Completo' : (isFailed ? 'Fallido' : 'Parcial'),
           style: TextStyle(
-            color: isCompleted ? Colors.green : Colors.yellow,
+            color: isCompleted ? completedColor : (isFailed ? failedColor : partialColor),
             fontWeight: FontWeight.bold,
           ),
         ).animate().fade(duration: 300.ms).scale(delay: 100.ms),
