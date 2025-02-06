@@ -148,15 +148,28 @@ class _LoginState extends State<Login> {
               const Padding(
                 padding: EdgeInsets.fromLTRB(20, 1, 20, 1),
                 child: Center(
-                  child: Text(
-                    'App Suite',
-                    style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    fontFamily: 'times_new_roman_bold_italic',
-                    fontSize: 30),
+                  child: Column(
+                    children: [
+                      Text(
+                        'App Suite',
+                        style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontFamily: 'times_new_roman_bold_italic',
+                        fontSize: 30),
+                      ),
+                      Text(
+                        'v1.0',
+                        style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontFamily: 'times_new_roman_bold',
+                        fontSize: 14
+                        ),
+                      ),
+                    ]
                   ),
-                ),
+                ),                
               ),
               const Padding(
                 padding: EdgeInsets.fromLTRB(20, 1, 20, 1),
@@ -274,7 +287,7 @@ class _LoginState extends State<Login> {
               ),
               const Center(
                 child: Text(
-                  'Forgot Password?',
+                  'App Suite v1.0',
                   style: TextStyle(color: Color(0xff14DAE2)),
                 ),
               ),

@@ -6,10 +6,12 @@ class InfoCard extends StatelessWidget {
     super.key,
     required this.name,
     required this.profession,
+    required this.versionApp,
   });
 
   final String? name;
   final String? profession;
+  final String? versionApp;
 
   @override
   Widget build(BuildContext context) {
@@ -25,10 +27,18 @@ class InfoCard extends StatelessWidget {
         name ?? "",
         style: const TextStyle(color: Colors.white),
       ),
-      subtitle: Text(
-        profession ?? "",
-        style: const TextStyle(color: Colors.white),
-      ),
+      subtitle: Column(
+        children: [
+            Text(
+              profession ?? "",
+              style: const TextStyle(color: Colors.white),
+            ),
+            Text(
+              versionApp ?? "",
+              style: const TextStyle(color: Colors.white),
+            ),
+        ],
+      )
     );
   }
 }
