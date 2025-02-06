@@ -112,6 +112,7 @@ class _RecolectasViewState extends State<RecolectasView> {
   bool _isButtonExpanded = false;
   bool _showFinalizeButton = true;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  int? _kmInicial;
 
   List<RecolectaItem> items = [];
 
@@ -246,50 +247,110 @@ class _RecolectasViewState extends State<RecolectasView> {
       showError('Error: $e');
     }
   }
-
-  void _showFinalizeDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color.fromARGB(255, 0, 66, 68),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Ingrese el kilometraje final', style: TextStyle(color: Color.fromARGB(255, 255, 255, 255))),
-              TextFormField(
-                controller: _mileageController,
-                keyboardType: TextInputType.number,
-                inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],
-                decoration: const InputDecoration(
-                  hintText: 'Kilometraje',
-                  hintStyle: TextStyle(color: Colors.white54),
+  void _showFinalizeDialog() async {
+  await _fetchKmInicial();
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            backgroundColor: const Color.fromARGB(255, 0, 66, 68),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Ingrese el kilometraje final',
+                      style: TextStyle(color: Color.fromARGB(255, 255, 255, 255)),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.of(context).pop(); // Cierra el diálogo
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.red.withOpacity(0.8),
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                style: const TextStyle(color: Colors.white),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Ingrese un valor';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  if (_mileageController.text.isNotEmpty) {
-                    final kmFinal = int.tryParse(_mileageController.text) ?? 0;
-                    _showConfirmationDialog(kmFinal);
-                  }
-                },
-                child: const Text('Aceptar'),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+                if (_kmInicial != null)
+                    Text(
+                      'Kilometraje Inicial Ingresado: $_kmInicial',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                TextFormField(
+                  controller: _mileageController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],
+                  decoration: const InputDecoration(
+                    hintText: 'Kilometraje',
+                    hintStyle: TextStyle(color: Colors.white54),
+                  ),
+                  style: const TextStyle(color: Colors.white),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Ingrese un valor';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    if (_mileageController.text.isNotEmpty) {
+                      final kmFinal = int.tryParse(_mileageController.text) ?? 0;
+                        if (_kmInicial != null && kmFinal <= _kmInicial!) {
+                          showError('El kilometraje final no puede ser menor o igual al kilometraje inicial ingresado.');
+                        } else {
+                          _showConfirmationDialog(kmFinal);
+                        }
+                    }
+                  },
+                  child: const Text('Aceptar'),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+
+Future<void> _fetchKmInicial() async {
+    final url = Uri.parse('$baseUrl/recolectaenc/${UserSession.motoristaId}/currentKmInicial');
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${UserSession.token}',
+    };
+
+    try {
+      final response = await http.get(url, headers: headers);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          _kmInicial = data;
+        });
+      } else {
+        showError('Error al obtener el kilometraje inicial: ${response.body}');
+      }
+    } catch (e) {
+      showError('Error: $e');
+    }
   }
+
 
   void _showConfirmationDialog(int kmFinal) {
     Navigator.of(context).pop(); // Cerrar el diálogo actual
@@ -298,7 +359,7 @@ class _RecolectasViewState extends State<RecolectasView> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Confirmación'),
-          content: const Text('¿Está seguro de que desea finalizar y cerrar sesión?'),
+          content: const Text('¿Está seguro de que desea finalizar?, no hay vuelta atras'),
           actions: [
             TextButton(
               onPressed: () {
@@ -409,7 +470,7 @@ class _RecolectasViewState extends State<RecolectasView> {
     }
 
     // Lógica para finalizar y cerrar sesión
-    print("Kilometraje final ingresado: $kmFinal");
+    print("KmInicial Ingresado: $kmFinal");
 
     setState(() {
       _showFinalizeButton = false;
@@ -503,9 +564,7 @@ class _RecolectasViewState extends State<RecolectasView> {
   Widget _buildMainContent() {
     return isLoading
         ? const Center(child: CircularProgressIndicator())
-        : items.isEmpty
-            ? const Center(child: Text('No hay datos disponibles.'))
-            : ListView(
+        : ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: _buildProviderList(),
               );
@@ -532,6 +591,11 @@ class _RecolectasViewState extends State<RecolectasView> {
       bool algunaFallida = proveedorItems.any(
         (item) => ['incompleta', 'fallida'].contains(item.estado.toLowerCase())
       );
+      
+      // Verificar si hay órdenes nuevas o pendientes
+      bool hayOrdenesNuevas = proveedorItems.any((item) => 
+        !['recolectada', 'incompleta', 'fallida'].contains(item.estado.toLowerCase())
+      );
 
       // Determinar el color basado en los estados
       Color backgroundColor;
@@ -542,11 +606,12 @@ class _RecolectasViewState extends State<RecolectasView> {
         backgroundColor = Colors.greenAccent.withOpacity(0.2);
         borderColor = Colors.green;
         textColor = const Color.fromARGB(255, 139, 187, 142);
-      } else if (algunaFallida) {
+      } else if (algunaFallida && !hayOrdenesNuevas) {
+        // Solo mostrar rojo si hay fallidas y no hay nuevas órdenes
         backgroundColor = Colors.red.withOpacity(0.2);
         borderColor = Colors.red;
         textColor = const Color.fromARGB(255, 187, 139, 139);
-      } else if (algunaEnRuta || !todasRecolectadas) {
+      } else if (algunaEnRuta || hayOrdenesNuevas || !todasRecolectadas) {
         backgroundColor = Colors.yellow.withOpacity(0.2);
         borderColor = Colors.yellow.shade700;
         textColor = const Color.fromARGB(255, 202, 201, 110);

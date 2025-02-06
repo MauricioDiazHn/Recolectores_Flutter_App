@@ -217,7 +217,7 @@ class _RecolectasDetallesViewState extends State<RecolectasDetallesView> {
                 }
                 
                 // Si no están todas deshabilitadas, ejecutar la lógica de guardado
-                _guardarCambios();
+                _showConfirmationDialog();
               },
               child: const Text('Guardar'),
             ),
@@ -588,4 +588,33 @@ class _RecolectasDetallesViewState extends State<RecolectasDetallesView> {
       );
     }
   }
+
+  void _showConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Confirmación'),
+          content: const Text('¿Está seguro de que desea guardar los cambios?, Esta opcion no tiene reversion!!'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _guardarCambios();
+              },
+              child: const Text('Aceptar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
+
+
