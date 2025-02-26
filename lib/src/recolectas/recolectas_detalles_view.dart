@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:recolectores_app_flutter/models/rive_asset.dart';
 import 'package:recolectores_app_flutter/components/side_menu.dart';
 import 'package:recolectores_app_flutter/src/recolectas/api_constants.dart';
+import 'package:recolectores_app_flutter/src/services/UserSession.dart';
 import 'package:recolectores_app_flutter/src/ui/login/login.dart';
 import 'package:flutter/services.dart';
 import 'package:recolectores_app_flutter/src/recolectas/recolectas_view.dart';

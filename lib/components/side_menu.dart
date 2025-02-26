@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:recolectores_app_flutter/components/info_card.dart';
 import 'package:recolectores_app_flutter/components/side_menu_tile.dart';
 import 'package:recolectores_app_flutter/models/rive_asset.dart';
+import 'package:recolectores_app_flutter/src/services/UserSession.dart';
 import 'package:recolectores_app_flutter/src/ui/login/login.dart';
 import 'package:recolectores_app_flutter/utils/rive_utils.dart';
 import 'package:rive/rive.dart';
@@ -25,15 +26,15 @@ class _SideMenuState extends State<SideMenu> {
     });
   }
   
-  void logout() {
-    UserSession.clearSession(); // Eliminar los datos de sesión
-
-    // Redirigir al login
-    Navigator.pushReplacement(
-      context,
+  Future<void> logout() async {
+  await UserSession.clearSession();
+  if (mounted) {
+    Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (context) => const Login()),
+      (route) => false,
     );
   }
+}
 
   @override
   Widget build(BuildContext context) {

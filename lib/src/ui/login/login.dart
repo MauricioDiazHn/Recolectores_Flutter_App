@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:recolectores_app_flutter/src/recolectas/api_constants.dart';
 import 'package:recolectores_app_flutter/src/recolectas/recolectas_view.dart';
+import 'package:recolectores_app_flutter/src/services/UserSession.dart';
 import 'package:recolectores_app_flutter/src/ui/create__account/create_account.dart';
 import 'package:recolectores_app_flutter/src/ui/rounded_btn/rounded_btn.dart';
 import 'package:http/http.dart' as http;
@@ -23,31 +24,6 @@ class MyHttpOverrides extends HttpOverrides {
   }
 }
 
-class UserSession {
-  static String? token;
-  static int? motoristaId;
-  static String? fullName;
-  static String? userName;
-  static bool hasShownMileageDialog = false;
-
-  static void saveSession(
-      String newToken, int newMotoristaId, String newFullName, String newUserName) {
-    token = newToken;
-    motoristaId = newMotoristaId;
-    fullName = newFullName;
-    userName = newUserName;
-    hasShownMileageDialog = false;
-  }
-
-  static void clearSession() {
-    token = null;
-    motoristaId = null;
-    fullName = null;
-    userName = null;
-    hasShownMileageDialog = false;
-  }
-}
-
 class _LoginState extends State<Login> {
   bool showSpinner = false;
   String email = "";
@@ -67,6 +43,41 @@ class _LoginState extends State<Login> {
       showSpinner = true;
     });
 
+    try {
+      HttpOverrides.global = MyHttpOverrides();
+      final response = await _performLogin();
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        await UserSession.saveSession(
+          data['token'],
+          data['motoristaId'],
+          data['fullName'],
+          email,
+        );
+
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const RecolectasView()),
+          );
+        }
+      } else {
+        showError('Error al autenticar: Credenciales Invalidas');
+      }
+    } catch (e) {
+      showError('Error: $e');
+    } finally {
+      if (mounted) {
+      setState(() {
+        showSpinner = false;
+      });
+    }
+    }
+  }
+
+  Future<http.Response> _performLogin() async {
     final url = Uri.parse('$baseUrl/motorista/login');
     final headers = {'Content-Type': 'application/json'};
     final body = json.encode({
@@ -74,32 +85,7 @@ class _LoginState extends State<Login> {
       'Password': password,
     });
 
-    try {
-      HttpOverrides.global = MyHttpOverrides();
-      final response = await http.post(url, headers: headers, body: body);
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        String token = data['token'];
-        int motoristaId = data['motoristaId'];
-        String fullName = data['fullName'];
-        String username = email;
-        UserSession.saveSession(token, motoristaId, fullName, username);
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const RecolectasView()),
-        );
-      } else {
-        showError('Error al autenticar: Credenciales Invalidas');
-      }
-    } catch (e) {
-      showError('Error: $e');
-    }
-
-    setState(() {
-      showSpinner = false;
-    });
+    return await http.post(url, headers: headers, body: body);
   }
 
   Future<Map<String, dynamic>> loginUser(String email, String password) async {
