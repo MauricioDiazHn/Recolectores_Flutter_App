@@ -273,7 +273,7 @@ class _LoginState extends State<Login> {
               ),
               const Center(
                 child: Text(
-                  'App Suite v1.0',
+                  'App Suite v1.1',
                   style: TextStyle(color: Color(0xff14DAE2)),
                 ),
               ),
