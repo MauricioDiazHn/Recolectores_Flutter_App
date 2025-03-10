@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:recolectores_app_flutter/components/side_menu.dart';
+import 'package:recolectores_app_flutter/components/no_connection_view.dart';
 import 'package:recolectores_app_flutter/models/rive_asset.dart';
 import 'package:recolectores_app_flutter/src/services/UserSession.dart';
 import 'package:recolectores_app_flutter/src/ui/login/login.dart';
@@ -103,6 +104,8 @@ class EntregaItem {
 
 class _EntregasViewState extends State<EntregasView> {
   bool isLoading = false;
+  bool hasError = false;
+  String errorMessage = '';
   bool _showMileageDialog = !UserSession.hasShownMileageDialog;
   TextEditingController _mileageController = TextEditingController();
   bool _isButtonExpanded = false;
@@ -136,6 +139,14 @@ class _EntregasViewState extends State<EntregasView> {
     await checkMileageStatus();
   }
 
+  Future<void> _refreshData() async {
+    setState(() {
+      isLoading = true;
+    });
+    await fetchItems();
+    await checkMileageStatus();
+  }
+
   Future<void> fetchItems() async {
     String? token = UserSession.token;
     int? motoristaId = UserSession.motoristaId;
@@ -154,17 +165,21 @@ class _EntregasViewState extends State<EntregasView> {
         setState(() {
           items = data.map((item) => EntregaItem.fromJson(item)).toList();
           isLoading = false;
+          hasError = false;
+          errorMessage = '';
         });
       } else {
-        showError('Error al cargar datos: ${response.body}');
         setState(() {
           isLoading = false;
+          hasError = true;
+          errorMessage = 'Error al cargar los datos: ${response.statusCode}';
         });
       }
     } catch (e) {
-      showError('Error: $e');
       setState(() {
         isLoading = false;
+        hasError = true;
+        errorMessage = 'Error de conexión. Por favor verifica tu conexión a internet.';
       });
     }
   }
@@ -203,8 +218,10 @@ class _EntregasViewState extends State<EntregasView> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Ingrese el kilometraje actual',
-                  style: TextStyle(color: Color.fromARGB(255, 255, 255, 255))),
+              const Text(
+                'Ingrese el kilometraje actual',
+                style: TextStyle(color: Color.fromARGB(255, 255, 255, 255))
+              ),
               TextFormField(
                 controller: _mileageController,
                 keyboardType: TextInputType.number,
@@ -223,140 +240,201 @@ class _EntregasViewState extends State<EntregasView> {
                   return null;
                 },
               ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  if (_mileageController.text.isNotEmpty) {
+                    setState(() {
+                      final kmInicial = int.tryParse(_mileageController.text) ?? 0;
+                      _submitKmInicial(UserSession.motoristaId ?? 0, kmInicial, 'En Ruta');
+                      _showMileageDialog = false;
+                      UserSession.hasShownMileageDialog = true;
+                    });
+                    Navigator.of(context).pop();
+                  }
+                },
+                child: const Text('Aceptar'),
+              ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () async {
-                if (_mileageController.text.isNotEmpty) {
-                  await _submitMileage(int.parse(_mileageController.text));
-                  // ignore: use_build_context_synchronously
-                  Navigator.of(context).pop();
-                }
-              },
-              child: const Text('Aceptar',
-                  style: TextStyle(color: Color.fromARGB(255, 255, 255, 255))),
-            ),
-          ],
         );
       },
     );
   }
 
+  Future<void> _submitKmInicial(int motoristaId, int kmInicial, String estado) async {
+    final url = Uri.parse('$baseUrl/entregaenc/updateKmInicialAndStatus');
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${UserSession.token}',
+    };
+    final body = json.encode({
+      'MotoristaId': motoristaId,
+      'KmInicial': kmInicial,
+      'Estado': estado,
+    });
+
+    try {
+      final response = await http.post(url, headers: headers, body: body);
+      if (response.statusCode == 200) {
+        print("Actualización exitosa: ${response.body}");
+      } else {
+        showError('Error al actualizar: ${response.body}');
+      }
+    } catch (e) {
+      showError('Error: $e');
+    }
+  }
+
   Future<void> _checkAndShowMileageDialog() async {
     if (_showMileageDialog) {
-      _showMilleageDialog();
-      await UserSession.setMileageDialogShown();
+      bool hasEntered = await hasEnteredCurrentMileage(UserSession.motoristaId ?? 0);
+      if (!hasEntered) {
+        _showMilleageDialog();
+      } else {
+        setState(() {
+          _showMileageDialog = false;
+        });
+      }
     }
   }
 
-  Future<void> _submitMileage(int mileage) async {
-    String? token = UserSession.token;
-    int? motoristaId = UserSession.motoristaId;
-
-    final url = Uri.parse('$baseUrl/entregaenc/kminicial');
+  Future<bool> hasEnteredCurrentMileage(int motoristaId) async {
+    final url = Uri.parse('$baseUrl/entregaenc/hasenteredcurrentmileage/$motoristaId');
     final headers = {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
+      'Authorization': 'Bearer ${UserSession.token}',
     };
 
-    final body = jsonEncode({
-      'motoristaId': motoristaId,
-      'kmInicial': mileage,
-    });
-
     try {
-      final response = await http.post(url, headers: headers, body: body);
+      final response = await http.get(url, headers: headers);
       if (response.statusCode == 200) {
-        setState(() {
-          _kmInicial = mileage;
-        });
-      } else {
-        showError('Error al enviar kilometraje: ${response.body}');
+        final bool hasEntered = json.decode(response.body);
+        return hasEntered;
       }
     } catch (e) {
-      showError('Error: $e');
+      showError('Error al verificar kilometraje: $e');
     }
-  }
-
-  Future<void> _submitFinalMileage(int mileage) async {
-    String? token = UserSession.token;
-    int? motoristaId = UserSession.motoristaId;
-
-    final url = Uri.parse('$baseUrl/entregaenc/kmfinal');
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
-
-    final body = jsonEncode({
-      'motoristaId': motoristaId,
-      'kmFinal': mileage,
-    });
-
-    try {
-      final response = await http.post(url, headers: headers, body: body);
-      if (response.statusCode == 200) {
-        setState(() {
-          _showFinalizeButton = false;
-        });
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Kilometraje final registrado correctamente'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        showError('Error al enviar kilometraje final: ${response.body}');
-      }
-    } catch (e) {
-      showError('Error: $e');
-    }
+    return false;
   }
 
   void _showFinalMileageDialog() {
     showDialog(
       context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: const Color.fromARGB(255, 0, 66, 68),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Ingrese el kilometraje final',
+                        style: TextStyle(color: Color.fromARGB(255, 255, 255, 255)),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.of(context).pop();
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.red.withOpacity(0.8),
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_kmInicial != null)
+                    Text(
+                      'Kilometraje Inicial Ingresado: $_kmInicial',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  TextFormField(
+                    controller: _mileageController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: <TextInputFormatter>[
+                      FilteringTextInputFormatter.digitsOnly
+                    ],
+                    decoration: const InputDecoration(
+                      hintText: 'Kilometraje',
+                      hintStyle: TextStyle(color: Colors.white54),
+                    ),
+                    style: const TextStyle(color: Colors.white),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Ingrese un valor';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () {
+                      if (_mileageController.text.isNotEmpty) {
+                        final kmFinal = int.tryParse(_mileageController.text) ?? 0;
+                        if (_kmInicial != null && kmFinal <= _kmInicial!) {
+                          showError('El kilometraje final no puede ser menor o igual al kilometraje inicial ingresado.');
+                        } else {
+                          _showConfirmationDialog(kmFinal);
+                        }
+                      }
+                    },
+                    child: const Text('Aceptar'),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showConfirmationDialog(int kmFinal) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
       builder: (context) {
         return AlertDialog(
           backgroundColor: const Color.fromARGB(255, 0, 66, 68),
-          title: const Text('Finalizar Jornada',
-              style: TextStyle(color: Colors.white)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Ingrese el kilometraje final',
-                  style: TextStyle(color: Colors.white)),
-              TextFormField(
-                controller: _mileageController,
-                keyboardType: TextInputType.number,
-                inputFormatters: <TextInputFormatter>[
-                  FilteringTextInputFormatter.digitsOnly
-                ],
-                decoration: const InputDecoration(
-                  hintText: 'Kilometraje',
-                  hintStyle: TextStyle(color: Colors.white54),
-                ),
-                style: const TextStyle(color: Colors.white),
-              ),
-            ],
+          title: const Text(
+            '¿Está seguro de finalizar?',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: const Text(
+            'Esta acción cerrará su sesión',
+            style: TextStyle(color: Colors.white),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child:
-                  const Text('Cancelar', style: TextStyle(color: Colors.white)),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
             TextButton(
               onPressed: () {
-                if (_mileageController.text.isNotEmpty) {
-                  _submitFinalMileage(int.parse(_mileageController.text));
-                  Navigator.pop(context);
-                }
+                Navigator.of(context).pop();
+                Navigator.of(context).pop();
+                _finalizeAndLogout(UserSession.motoristaId ?? 0, kmFinal, 'Finalizada');
               },
-              child:
-                  const Text('Aceptar', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'Aceptar',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         );
@@ -364,61 +442,143 @@ class _EntregasViewState extends State<EntregasView> {
     );
   }
 
+  Future<void> _finalizeAndLogout(int motoristaId, int kmFinal, String estado) async {
+    final url = Uri.parse('$baseUrl/entregaenc/updateKmFinalAndStatus');
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${UserSession.token}',
+    };
+    final body = json.encode({
+      'MotoristaId': motoristaId,
+      'KmFinal': kmFinal,
+      'Estado': estado,
+    });
+
+    try {
+      final response = await http.post(url, headers: headers, body: body);
+      if (response.statusCode == 200) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const Login()),
+          (route) => false,
+        );
+      } else {
+        showError('Error al finalizar: ${response.body}');
+      }
+    } catch (e) {
+      showError('Error: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      key: _scaffoldKey,
-      drawer: const SideMenu(),
-      appBar: AppBar(
-        title: const Text('Entregas'),
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-        ),
-        actions: [
-          if (_showFinalizeButton)
-            IconButton(
-              icon: const Icon(Icons.check_circle),
-              onPressed: () {
-                _mileageController.clear();
-                _showFinalMileageDialog();
-              },
+    return WillPopScope(
+      onWillPop: () async {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se permite regresar en esta pantalla'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return false;
+      },
+      child: Navigator(
+        onGenerateRoute: (settings) => MaterialPageRoute(
+          settings: const RouteSettings(name: '/entregas'),
+          builder: (context) => Scaffold(
+            key: _scaffoldKey,
+            appBar: AppBar(
+              title: const Text('Entregas'),
+              leading: IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () {
+                  _scaffoldKey.currentState?.openDrawer();
+                },
+              ),
             ),
-        ],
-      ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : items.isEmpty
-              ? const Center(child: Text('No hay entregas pendientes'))
-              : ListView.builder(
-                  itemCount: items.length,
-                  itemBuilder: (context, index) {
-                    final item = items[index];
-                    return Card(
-                      margin: const EdgeInsets.all(8.0),
-                      child: ListTile(
-                        title: Text('Orden: ${item.ordenCompraId}'),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Proveedor: ${item.proveedor}'),
-                            Text('Dirección: ${item.direccion}'),
-                            Text('Estado: ${item.estado}'),
-                          ],
-                        ),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  EntregasDetallesView(items: [item]),
+            drawer: const SideMenu(),
+            body: Stack(
+              children: [
+                Opacity(
+                  opacity: _showMileageDialog ? 0.2 : 1.0,
+                  child: RefreshIndicator(
+                    onRefresh: _refreshData,
+                    child: isLoading
+                      ? const Center(
+                          child: CircularProgressIndicator(),
+                        )
+                      : hasError
+                        ? NoConnectionView(
+                            onRetry: _fetchData,
+                            message: errorMessage,
+                          )
+                        : items.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'No hay entregas pendientes',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            )
+                          : ListView.builder(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              itemCount: items.length,
+                              itemBuilder: (context, index) {
+                                final item = items[index];
+                                return Card(
+                                  margin: const EdgeInsets.all(8.0),
+                                  child: ListTile(
+                                    title: Text('Orden: ${item.ordenCompraId}'),
+                                    subtitle: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Proveedor: ${item.proveedor}'),
+                                        Text('Dirección: ${item.direccion}'),
+                                        Text('Estado: ${item.estado}'),
+                                      ],
+                                    ),
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              EntregasDetallesView(items: [item]),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                );
+                              },
                             ),
-                          );
-                        },
-                      ),
-                    );
-                  },
+                  ),
                 ),
+              ],
+            ),
+            floatingActionButton: _showFinalizeButton ? AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              width: _isButtonExpanded ? 200.0 : 60.0,
+              height: 60.0,
+              child: FloatingActionButton.extended(
+                onPressed: () {
+                  setState(() {
+                    _isButtonExpanded = !_isButtonExpanded;
+                  });
+                  if (!_isButtonExpanded) {
+                    _showFinalMileageDialog();
+                  }
+                },
+                backgroundColor: const Color.fromARGB(255, 0, 66, 68),
+                label: _isButtonExpanded
+                    ? const Text('FINALIZAR')
+                    : const Icon(Icons.check),
+                icon: _isButtonExpanded ? const Icon(Icons.check) : null,
+              ),
+            ) : null,
+          ),
+        ),
+      ),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:recolectores_app_flutter/components/side_menu.dart';
+import 'package:recolectores_app_flutter/components/no_connection_view.dart';
 import 'package:recolectores_app_flutter/models/rive_asset.dart';
 import 'package:recolectores_app_flutter/src/services/UserSession.dart';
 import 'package:recolectores_app_flutter/src/ui/login/login.dart';
@@ -108,6 +109,8 @@ class RecolectaItem {
 
 class _RecolectasViewState extends State<RecolectasView> {
   bool isLoading = false;
+  bool hasError = false;
+  String errorMessage = '';
   bool _showMileageDialog = !UserSession.hasShownMileageDialog;
   TextEditingController _mileageController = TextEditingController();
   bool _isButtonExpanded = false;
@@ -159,17 +162,25 @@ class _RecolectasViewState extends State<RecolectasView> {
         setState(() {
           items = data.map((item) => RecolectaItem.fromJson(item)).toList();
           isLoading = false;
+          hasError = false;
+          errorMessage = '';
         });
       } else {
-        showError('Error al cargar datos: ${response.body}');
         setState(() {
           isLoading = false;
+          hasError = true;
+          errorMessage = 'Error al cargar los datos. Por favor, intente de nuevo.';
         });
       }
     } catch (e) {
-      showError('Error: $e');
       setState(() {
         isLoading = false;
+        hasError = true;
+        if (e is SocketException) {
+          errorMessage = 'No hay conexión a internet. Por favor, verifique su conexión y vuelva a intentar.';
+        } else {
+          errorMessage = 'Ocurrió un error inesperado. Por favor, intente de nuevo.';
+        }
       });
     }
   }
@@ -229,7 +240,7 @@ class _RecolectasViewState extends State<RecolectasView> {
     final url = Uri.parse('$baseUrl/recolectaenc/updateKmInicialAndStatus');
     final headers = {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${UserSession.token}', // Asegúrate de tener el token
+      'Authorization': 'Bearer ${UserSession.token}',
     };
     final body = json.encode({
       'MotoristaId': motoristaId,
@@ -240,98 +251,111 @@ class _RecolectasViewState extends State<RecolectasView> {
     try {
       final response = await http.post(url, headers: headers, body: body);
       if (response.statusCode == 200) {
-        print("Actualización exitosa: ${response.body}");
+        setState(() {
+          hasError = false;
+          errorMessage = '';
+        });
       } else {
-        showError('Error al actualizar: ${response.body}');
+        setState(() {
+          hasError = true;
+          errorMessage = 'Error al actualizar el kilometraje. Por favor, intente de nuevo.';
+        });
       }
     } catch (e) {
-      showError('Error: $e');
+      setState(() {
+        hasError = true;
+        if (e is SocketException) {
+          errorMessage = 'No hay conexión a internet. Por favor, verifique su conexión y vuelva a intentar.';
+        } else {
+          errorMessage = 'Ocurrió un error inesperado al actualizar el kilometraje. Por favor, intente de nuevo.';
+        }
+      });
     }
   }
+
   void _showFinalizeDialog() async {
-  await _fetchKmInicial();
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) {
-      return StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            backgroundColor: const Color.fromARGB(255, 0, 66, 68),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Ingrese el kilometraje final',
-                      style: TextStyle(color: Color.fromARGB(255, 255, 255, 255)),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.of(context).pop(); // Cierra el diálogo
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.red.withOpacity(0.8),
-                        ),
-                        child: const Icon(
-                          Icons.close,
-                          color: Colors.white,
+    await _fetchKmInicial();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              backgroundColor: const Color.fromARGB(255, 0, 66, 68),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Ingrese el kilometraje final',
+                        style: TextStyle(color: Color.fromARGB(255, 255, 255, 255)),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.of(context).pop(); // Cierra el diálogo
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.red.withOpacity(0.8),
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                if (_kmInicial != null)
-                    Text(
-                      'Kilometraje Inicial Ingresado: $_kmInicial',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                TextFormField(
-                  controller: _mileageController,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(
-                    hintText: 'Kilometraje',
-                    hintStyle: TextStyle(color: Colors.white54),
+                    ],
                   ),
-                  style: const TextStyle(color: Colors.white),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Ingrese un valor';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () {
-                    if (_mileageController.text.isNotEmpty) {
-                      final kmFinal = int.tryParse(_mileageController.text) ?? 0;
+                  if (_kmInicial != null)
+                      Text(
+                        'Kilometraje Inicial Ingresado: $_kmInicial',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                  TextFormField(
+                    controller: _mileageController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],
+                    decoration: const InputDecoration(
+                      hintText: 'Kilometraje',
+                      hintStyle: TextStyle(color: Colors.white54),
+                    ),
+                    style: const TextStyle(color: Colors.white),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Ingrese un valor';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () {
+                      if (_mileageController.text.isNotEmpty) {
+                        final kmFinal = int.tryParse(_mileageController.text) ?? 0;
                         if (_kmInicial != null && kmFinal <= _kmInicial!) {
                           showError('El kilometraje final no puede ser menor o igual al kilometraje inicial ingresado.');
                         } else {
                           _showConfirmationDialog(kmFinal);
                         }
-                    }
-                  },
-                  child: const Text('Aceptar'),
-                ),
-              ],
-            ),
-          );
-        },
-      );
-    },
-  );
-}
+                      }
+                    },
+                    child: const Text('Aceptar'),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
-
-Future<void> _fetchKmInicial() async {
-    final url = Uri.parse('$baseUrl/recolectaenc/${UserSession.motoristaId}/currentKmInicial');
+  Future<void> _fetchKmInicial() async {
+    final url = Uri.parse('$baseUrl/recolectaenc/getKmInicial/${UserSession.motoristaId}');
     final headers = {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ${UserSession.token}',
@@ -342,16 +366,27 @@ Future<void> _fetchKmInicial() async {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         setState(() {
-          _kmInicial = data;
+          _kmInicial = data['kmInicial'] ?? 0;
+          hasError = false;
+          errorMessage = '';
         });
       } else {
-        showError('Error al obtener el kilometraje inicial: ${response.body}');
+        setState(() {
+          hasError = true;
+          errorMessage = 'Error al obtener el kilometraje inicial. Por favor, intente de nuevo.';
+        });
       }
     } catch (e) {
-      showError('Error: $e');
+      setState(() {
+        hasError = true;
+        if (e is SocketException) {
+          errorMessage = 'No hay conexión a internet. Por favor, verifique su conexión y vuelva a intentar.';
+        } else {
+          errorMessage = 'Ocurrió un error inesperado al obtener el kilometraje. Por favor, intente de nuevo.';
+        }
+      });
     }
   }
-
 
   void _showConfirmationDialog(int kmFinal) {
     Navigator.of(context).pop(); // Cerrar el diálogo actual
@@ -382,24 +417,83 @@ Future<void> _fetchKmInicial() async {
     );
   }
 
+  Future<void> _finalizeAndLogout(int motoristaId, int kmFinal, String estado) async {
+    final url = Uri.parse('$baseUrl/recolectaenc/updateKmFinalAndStatus');
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${UserSession.token}',
+    };
+    final body = json.encode({
+      'MotoristaId': motoristaId,
+      'KmFinal': kmFinal,
+      'Estado': estado,
+    });
+
+    try {
+      final response = await http.post(url, headers: headers, body: body);
+      if (response.statusCode == 200) {
+        setState(() {
+          hasError = false;
+          errorMessage = '';
+        });
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const Login(),
+            settings: const RouteSettings(name: '/login'),
+          ),
+          (route) => false,
+        );
+      } else {
+        setState(() {
+          hasError = true;
+          errorMessage = 'Error al finalizar la sesión. Por favor, intente de nuevo.';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        hasError = true;
+        if (e is SocketException) {
+          errorMessage = 'No hay conexión a internet. Por favor, verifique su conexión y vuelva a intentar.';
+        } else {
+          errorMessage = 'Ocurrió un error inesperado al finalizar. Por favor, intente de nuevo.';
+        }
+      });
+    }
+  }
+
   Future<bool> hasEnteredCurrentMileage(int motoristaId) async {
     final url = Uri.parse('$baseUrl/recolectaenc/$motoristaId/currentMileage?checkFinalMileage=false');
     final headers = {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${UserSession.token}', // Asegúrate de tener el token
+      'Authorization': 'Bearer ${UserSession.token}',
     };
 
     try {
       final response = await http.get(url, headers: headers);
       if (response.statusCode == 200) {
-        final data = json.decode(response.body) as bool;
-        return data;
+        setState(() {
+          _showMileageDialog = response.body == 'true';
+          hasError = false;
+          errorMessage = '';
+        });
+        return response.body == 'true';
       } else {
-        showError('Error al verificar el kilometraje actual: ${response.body}');
+        setState(() {
+          hasError = true;
+          errorMessage = 'Error al verificar el estado del kilometraje. Por favor, intente de nuevo.';
+        });
         return false;
       }
     } catch (e) {
-      showError('Error: $e');
+      setState(() {
+        hasError = true;
+        if (e is SocketException) {
+          errorMessage = 'No hay conexión a internet. Por favor, verifique su conexión y vuelva a intentar.';
+        } else {
+          errorMessage = 'Ocurrió un error inesperado al verificar el kilometraje. Por favor, intente de nuevo.';
+        }
+      });
       return false;
     }
   }
@@ -408,20 +502,34 @@ Future<void> _fetchKmInicial() async {
     final url = Uri.parse('$baseUrl/recolectaenc/$motoristaId/currentMileage?checkFinalMileage=true');
     final headers = {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${UserSession.token}', // Asegúrate de tener el token
+      'Authorization': 'Bearer ${UserSession.token}',
     };
 
     try {
       final response = await http.get(url, headers: headers);
       if (response.statusCode == 200) {
-        final data = json.decode(response.body) as bool;
-        return data;
+        setState(() {
+          _showFinalizeButton = response.body == 'true';
+          hasError = false;
+          errorMessage = '';
+        });
+        return response.body == 'true';
       } else {
-        showError('Error al verificar el estado de finalización: ${response.body}');
+        setState(() {
+          hasError = true;
+          errorMessage = 'Error al verificar el estado de la recolecta. Por favor, intente de nuevo.';
+        });
         return false;
       }
     } catch (e) {
-      showError('Error: $e');
+      setState(() {
+        hasError = true;
+        if (e is SocketException) {
+          errorMessage = 'No hay conexión a internet. Por favor, verifique su conexión y vuelva a intentar.';
+        } else {
+          errorMessage = 'Ocurrió un error inesperado al verificar la recolecta. Por favor, intente de nuevo.';
+        }
+      });
       return false;
     }
   }
@@ -447,37 +555,6 @@ Future<void> _fetchKmInicial() async {
     }
   }
 
-  Future<void> _finalizeAndLogout(int motoristaId, int kmFinal, String estado) async {
-    final url = Uri.parse('$baseUrl/recolectaenc/updateKmFinalAndStatus');
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${UserSession.token}', // Asegúrate de tener el token
-    };
-    final body = json.encode({
-      'MotoristaId': motoristaId,
-      'KmFinal': kmFinal,
-      'Estado': estado,
-    });
-
-    try {
-      final response = await http.post(url, headers: headers, body: body);
-      if (response.statusCode == 200) {
-        print("Actualización exitosa: ${response.body}");
-      } else {
-        showError('Error al actualizar: ${response.body}');
-      }
-    } catch (e) {
-      showError('Error: $e');
-    }
-
-    // Lógica para finalizar y cerrar sesión
-    print("KmInicial Ingresado: $kmFinal");
-
-    setState(() {
-      _showFinalizeButton = false;
-    });
-  }
-
   Future<void> _updateMotoristaData() async {
     final url = Uri.parse('$baseUrl/recolectaenc/UpdateByMotoristaId/${UserSession.motoristaId}');
     final headers = {
@@ -488,10 +565,25 @@ Future<void> _fetchKmInicial() async {
     try {
       final response = await http.put(url, headers: headers);
       if (response.statusCode != 200) {
-        showError('Error al actualizar datos del motorista: ${response.body}');
+        setState(() {
+          hasError = true;
+          errorMessage = 'Error al actualizar datos del motorista. Por favor, intente de nuevo.';
+        });
+      } else {
+        setState(() {
+          hasError = false;
+          errorMessage = '';
+        });
       }
     } catch (e) {
-      showError('Error en la actualización: $e');
+      setState(() {
+        hasError = true;
+        if (e is SocketException) {
+          errorMessage = 'No hay conexión a internet. Por favor, verifique su conexión y vuelva a intentar.';
+        } else {
+          errorMessage = 'Ocurrió un error inesperado al actualizar datos del motorista. Por favor, intente de nuevo.';
+        }
+      });
     }
   }
 
@@ -505,70 +597,95 @@ Future<void> _fetchKmInicial() async {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        // Mostrar un mensaje al usuario
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('No se permite regresar en esta pantalla'),
             duration: Duration(seconds: 2),
           ),
         );
-        // Seguimos retornando false para evitar la navegación hacia atrás
         return false;
       },
-      child: Scaffold(
-        key: _scaffoldKey, // Agregado para manejar el menú lateral
-        appBar: AppBar(
-          title: const Text('Recolectas / Pedidos'),
-          leading: IconButton(
-            icon: const Icon(Icons.menu),
-            onPressed: () {
-              _scaffoldKey.currentState?.openDrawer(); // Abre el menú lateral
-            },
-          ),
-        ),
-        drawer: const SideMenu(), // Aquí va el menú lateral
-        body: Stack(
-          children: [
-            Opacity(
-              opacity: _showMileageDialog ? 0.2 : 1.0, // Opacidad variable
-              child: RefreshIndicator(
-                onRefresh: _refreshData,
-                child: _buildMainContent()
+      child: Navigator(
+        onGenerateRoute: (settings) => MaterialPageRoute(
+          settings: const RouteSettings(name: '/'),
+          builder: (context) => Scaffold(
+            key: _scaffoldKey, // Agregado para manejar el menú lateral
+            appBar: AppBar(
+              title: const Text('Recolectas / Pedidos'),
+              leading: IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () {
+                  _scaffoldKey.currentState?.openDrawer(); // Abre el menú lateral
+                },
               ),
             ),
-          ],
-        ),
-        floatingActionButton: _showFinalizeButton ? AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          width: _isButtonExpanded ? 200.0 : 60.0,
-          height: 60.0,
-          child: FloatingActionButton.extended(
-            onPressed: () {
-              setState(() {
-                _isButtonExpanded = !_isButtonExpanded;
-              });
-              if (!_isButtonExpanded) {
-                _showFinalizeDialog();
-              }
-            },
-            backgroundColor: const Color.fromARGB(255, 0, 66, 68),
-            label: _isButtonExpanded
-                ? const Text('FINALIZAR')
-                : const Icon(Icons.check),
-            icon: _isButtonExpanded ? const Icon(Icons.check) : null,
+            drawer: const SideMenu(), // Aquí va el menú lateral
+            body: Stack(
+              children: [
+                Opacity(
+                  opacity: _showMileageDialog ? 0.2 : 1.0, // Opacidad variable
+                  child: _buildMainContent()
+                ),
+              ],
+            ),
+            floatingActionButton: _showFinalizeButton ? AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              width: _isButtonExpanded ? 200.0 : 60.0,
+              height: 60.0,
+              child: FloatingActionButton.extended(
+                onPressed: () {
+                  setState(() {
+                    _isButtonExpanded = !_isButtonExpanded;
+                  });
+                  if (!_isButtonExpanded) {
+                    _showFinalizeDialog();
+                  }
+                },
+                backgroundColor: const Color.fromARGB(255, 0, 66, 68),
+                label: _isButtonExpanded
+                    ? const Text('FINALIZAR')
+                    : const Icon(Icons.check),
+                icon: _isButtonExpanded ? const Icon(Icons.check) : null,
+              ),
+            ) : null,
           ),
-        ) : null,
+        ),
       ),
     );
   }
   
   Widget _buildMainContent() {
-    return isLoading
-        ? const Center(child: CircularProgressIndicator())
-        : ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                children: _buildProviderList(),
-              );
+    return Stack(
+      children: [
+        if (isLoading)
+          const Center(
+            child: CircularProgressIndicator(),
+          )
+        else if (hasError)
+          NoConnectionView(
+            onRetry: _refreshData,
+            message: errorMessage,
+          )
+        else if (items.isEmpty)
+          const Center(
+            child: Text(
+              'No hay recolectas pendientes',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+              ),
+            ),
+          )
+        else
+          RefreshIndicator(
+            onRefresh: _refreshData,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: _buildProviderList(),
+            ),
+          ),
+      ],
+    );
   }
 
   List<Widget> _buildProviderList() {

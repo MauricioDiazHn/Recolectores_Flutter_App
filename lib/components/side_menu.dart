@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:recolectores_app_flutter/components/info_card.dart';
 import 'package:recolectores_app_flutter/components/side_menu_tile.dart';
 import 'package:recolectores_app_flutter/models/rive_asset.dart';
+import 'package:recolectores_app_flutter/src/entregas/entregas_view.dart';
 import 'package:recolectores_app_flutter/src/services/UserSession.dart';
 import 'package:recolectores_app_flutter/src/ui/login/login.dart';
 import 'package:recolectores_app_flutter/utils/rive_utils.dart';
@@ -18,13 +19,44 @@ class SideMenu extends StatefulWidget {
 class _SideMenuState extends State<SideMenu> {
   RiveAsset selectedMenu = sideMenu.first;
 
+  void _updateSelectedMenu() {
+    final route = ModalRoute.of(context)?.settings.name ?? '/';
+    setState(() {
+      selectedMenu = sideMenu.firstWhere(
+        (menu) => menu.route == route,
+        orElse: () => sideMenu.first,
+      );
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _updateSelectedMenu();
+  }
+
   // Método para manejar la navegación a una pantalla específica
   void navigateTo(String route) {
     if (route == "/") {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const RecolectasView()),
-        (route) => false,
-      );
+      Future.delayed(const Duration(seconds: 2), () {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) => const RecolectasView(),
+            settings: const RouteSettings(name: '/'),
+          ),
+          (route) => false,
+        );
+      });
+    } else if (route == "/entregas") {
+      Future.delayed(const Duration(seconds: 2), () {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) => const EntregasView(),
+            settings: const RouteSettings(name: '/entregas'),
+          ),
+          (route) => false,
+        );
+      });
     } else {
       // Mostrar mensaje de funcionalidad no disponible
       ScaffoldMessenger.of(context).showSnackBar(
@@ -38,7 +70,10 @@ class _SideMenuState extends State<SideMenu> {
       // Redirigir a RecolectasView después de un breve delay
       Future.delayed(const Duration(seconds: 2), () {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const RecolectasView()),
+          MaterialPageRoute(
+            builder: (context) => const RecolectasView(),
+            settings: const RouteSettings(name: '/'),
+          ),
           (route) => false,
         );
       });
@@ -69,7 +104,7 @@ class _SideMenuState extends State<SideMenu> {
               InfoCard(
                 name: UserSession.fullName,
                 profession: UserSession.userName,
-                versionApp: "v1.1",
+                versionApp: "v1.2",
               ),
               Padding(
                 padding: const EdgeInsets.only(left: 24, top: 32, bottom: 16),
