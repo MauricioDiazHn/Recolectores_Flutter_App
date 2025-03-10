@@ -20,10 +20,29 @@ class _SideMenuState extends State<SideMenu> {
 
   // Método para manejar la navegación a una pantalla específica
   void navigateTo(String route) {
-    Future.delayed(const Duration(seconds: 1), () {
-      // ignore: use_build_context_synchronously
-      Navigator.pushNamed(context, route);
-    });
+    if (route == "/") {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const RecolectasView()),
+        (route) => false,
+      );
+    } else {
+      // Mostrar mensaje de funcionalidad no disponible
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Esta funcionalidad aún no está disponible'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      
+      // Redirigir a RecolectasView después de un breve delay
+      Future.delayed(const Duration(seconds: 2), () {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const RecolectasView()),
+          (route) => false,
+        );
+      });
+    }
   }
   
   Future<void> logout() async {

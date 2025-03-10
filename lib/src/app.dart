@@ -4,6 +4,7 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:recolectores_app_flutter/src/recolectas/blocs/recolecta_bloc.dart';
 import 'package:recolectores_app_flutter/src/recolectas/repositories/recolecta_repository.dart';
+import 'package:recolectores_app_flutter/src/entregas/entregas_view.dart';
 import 'services/UserSession.dart';
 import 'ui/login/login.dart';
 import 'recolectas/recolectas_view.dart';
@@ -62,11 +63,14 @@ class _MyAppState extends State<MyApp> {
           theme: ThemeData(),
           darkTheme: ThemeData.dark(),
           themeMode: widget.settingsController.themeMode,
-          home: !_initialized
-              ? const Center(child: CircularProgressIndicator())
-              : _isLoggedIn
-                  ? const RecolectasView()
-                  : const Login(),
+          routes: {
+            '/': (context) => !_initialized
+                ? const Center(child: CircularProgressIndicator())
+                : _isLoggedIn
+                    ? const RecolectasView()
+                    : const Login(),
+            '/entregas': (context) => const EntregasView(),
+          },
         );
       },
     );
