@@ -134,9 +134,17 @@ class _EntregasViewState extends State<EntregasView> {
   Future<void> _fetchData() async {
     setState(() {
       isLoading = true;
+      hasError = false;
+      errorMessage = '';
+      _showMileageDialog = false;
+      _showFinalizeButton = false;
     });
+    
     await fetchItems();
-    await checkMileageStatus();
+    
+    if (!hasError && !isLoading) {
+      await checkMileageStatus();
+    }
   }
 
   Future<void> _refreshData() async {
@@ -148,18 +156,14 @@ class _EntregasViewState extends State<EntregasView> {
   }
 
   Future<void> fetchItems() async {
-    String? token = UserSession.token;
-    int? motoristaId = UserSession.motoristaId;
-
-    final url = Uri.parse('$baseUrl/entregaenc/$motoristaId');
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
-
     try {
-      final response = await http.get(url, headers: headers);
+      final url = Uri.parse('$baseUrl/entregaenc/GetByMotoristaId/${UserSession.motoristaId}');
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${UserSession.token}',
+      };
 
+      final response = await http.get(url, headers: headers);
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         setState(() {
@@ -172,43 +176,134 @@ class _EntregasViewState extends State<EntregasView> {
         setState(() {
           isLoading = false;
           hasError = true;
-          errorMessage = 'Error al cargar los datos: ${response.statusCode}';
+          errorMessage = 'Error al cargar las entregas. Por favor, intente de nuevo.';
+          _showMileageDialog = false;
+          _showFinalizeButton = false;
         });
       }
     } catch (e) {
       setState(() {
         isLoading = false;
         hasError = true;
-        errorMessage = 'Error de conexión. Por favor verifica tu conexión a internet.';
+        if (e is SocketException) {
+          errorMessage = 'No hay conexión a internet. Por favor, verifique su conexión y vuelva a intentar.';
+        } else {
+          errorMessage = 'Ocurrió un error inesperado. Por favor, intente de nuevo.';
+        }
+        _showMileageDialog = false;
+        _showFinalizeButton = false;
       });
     }
   }
 
   Future<void> checkMileageStatus() async {
-    String? token = UserSession.token;
-    int? motoristaId = UserSession.motoristaId;
-
-    final url = Uri.parse('$baseUrl/entregaenc/kmstatus/$motoristaId');
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
+    if (hasError) {
+      setState(() {
+        _showMileageDialog = false;
+        _showFinalizeButton = false;
+      });
+      return;
+    }
 
     try {
-      final response = await http.get(url, headers: headers);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+      final hasEntered = await hasEnteredCurrentMileage(UserSession.motoristaId ?? 0);
+      final hasFinalized = await hasFinalizedRecolecta(UserSession.motoristaId ?? 0);
+      
+      if (!hasError) {
         setState(() {
-          _showFinalizeButton = data['showFinalizeButton'] ?? true;
-          _kmInicial = data['kmInicial'];
+          _showMileageDialog = !hasEntered;
+          _showFinalizeButton = !hasFinalized;
         });
+        
+        if (!hasEntered) {
+          _showMilleageDialog();
+        }
       }
     } catch (e) {
-      showError('Error al verificar estado de kilometraje: $e');
+      setState(() {
+        hasError = true;
+        errorMessage = 'Error al verificar el kilometraje. Por favor, intente de nuevo.';
+        _showMileageDialog = false;
+        _showFinalizeButton = false;
+      });
+    }
+  }
+
+  Future<bool> hasEnteredCurrentMileage(int motoristaId) async {
+    try {
+      final url = Uri.parse('$baseUrl/entregaenc/$motoristaId/currentMileage?checkFinalMileage=false');
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${UserSession.token}',
+      };
+
+      final response = await http.get(url, headers: headers);
+      if (response.statusCode == 200) {
+        return response.body == 'true';
+      } else {
+        setState(() {
+          hasError = true;
+          errorMessage = 'Error al verificar el kilometraje. Por favor, intente de nuevo.';
+          _showMileageDialog = false;
+          _showFinalizeButton = false;
+        });
+        return true; // Retornamos true para evitar mostrar el diálogo
+      }
+    } catch (e) {
+      setState(() {
+        hasError = true;
+        if (e is SocketException) {
+          errorMessage = 'No hay conexión a internet. Por favor, verifique su conexión y vuelva a intentar.';
+        } else {
+          errorMessage = 'Error al verificar el kilometraje. Por favor, intente de nuevo.';
+        }
+        _showMileageDialog = false;
+        _showFinalizeButton = false;
+      });
+      return true; // Retornamos true para evitar mostrar el diálogo
+    }
+  }
+
+  Future<bool> hasFinalizedRecolecta(int motoristaId) async {
+    try {
+      final url = Uri.parse('$baseUrl/entregaenc/$motoristaId/currentMileage?checkFinalMileage=true');
+      final headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${UserSession.token}',
+      };
+
+      final response = await http.get(url, headers: headers);
+      if (response.statusCode == 200) {
+        return response.body == 'true';
+      } else {
+        setState(() {
+          hasError = true;
+          errorMessage = 'Error al verificar el estado de la entrega. Por favor, intente de nuevo.';
+          _showMileageDialog = false;
+          _showFinalizeButton = false;
+        });
+        return true; // Retornamos true para evitar mostrar el botón
+      }
+    } catch (e) {
+      setState(() {
+        hasError = true;
+        if (e is SocketException) {
+          errorMessage = 'No hay conexión a internet. Por favor, verifique su conexión y vuelva a intentar.';
+        } else {
+          errorMessage = 'Error al verificar el estado de la entrega. Por favor, intente de nuevo.';
+        }
+        _showMileageDialog = false;
+        _showFinalizeButton = false;
+      });
+      return true; // Retornamos true para evitar mostrar el botón
     }
   }
 
   void _showMilleageDialog() {
+    if (hasError) {
+      return;
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -286,39 +381,11 @@ class _EntregasViewState extends State<EntregasView> {
     }
   }
 
-  Future<void> _checkAndShowMileageDialog() async {
-    if (_showMileageDialog) {
-      bool hasEntered = await hasEnteredCurrentMileage(UserSession.motoristaId ?? 0);
-      if (!hasEntered) {
-        _showMilleageDialog();
-      } else {
-        setState(() {
-          _showMileageDialog = false;
-        });
-      }
-    }
-  }
-
-  Future<bool> hasEnteredCurrentMileage(int motoristaId) async {
-    final url = Uri.parse('$baseUrl/entregaenc/hasenteredcurrentmileage/$motoristaId');
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${UserSession.token}',
-    };
-
-    try {
-      final response = await http.get(url, headers: headers);
-      if (response.statusCode == 200) {
-        final bool hasEntered = json.decode(response.body);
-        return hasEntered;
-      }
-    } catch (e) {
-      showError('Error al verificar kilometraje: $e');
-    }
-    return false;
-  }
-
   void _showFinalMileageDialog() {
+    if (hasError) {
+      return;
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -401,6 +468,10 @@ class _EntregasViewState extends State<EntregasView> {
   }
 
   void _showConfirmationDialog(int kmFinal) {
+    if (hasError) {
+      return;
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -467,6 +538,19 @@ class _EntregasViewState extends State<EntregasView> {
       }
     } catch (e) {
       showError('Error: $e');
+    }
+  }
+
+  Future<void> _checkAndShowMileageDialog() async {
+    if (_showMileageDialog) {
+      bool hasEntered = await hasEnteredCurrentMileage(UserSession.motoristaId ?? 0);
+      if (!hasEntered && !hasError) {
+        _showMilleageDialog();
+      } else {
+        setState(() {
+          _showMileageDialog = false;
+        });
+      }
     }
   }
 

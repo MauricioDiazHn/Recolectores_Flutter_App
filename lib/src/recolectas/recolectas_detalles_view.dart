@@ -175,54 +175,60 @@ class _RecolectasDetallesViewState extends State<RecolectasDetallesView> {
   Widget build(BuildContext context) {
     bool allDisabled = _allOrdersDisabled();
 
-    return Scaffold(
-      key: _scaffoldKey,
-      drawer: const SideMenu(),
-      appBar: AppBar(
-        title: const Text('Detalles del Pedido'),
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.of(context).pop();
+        return false;
+      },
+      child: Scaffold(
+        key: _scaffoldKey,
+        drawer: const SideMenu(),
+        appBar: AppBar(
+          title: const Text('Detalles del Pedido'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
         ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: ListView( 
-          children: [
-            _buildNonEditableField(
-                label: 'Proveedor', value: widget.items.first.proveedor),
-            _buildNonEditableField(
-                label: 'Dirección', value: widget.items.first.direccion),
-            _buildEditableField(
-              label: 'Comentario',
-              controller: comentarioController,
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start, // Alinea a la izquierda
-                children: _buildOrderDetails(),
+        body: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: ListView( 
+            children: [
+              _buildNonEditableField(
+                  label: 'Proveedor', value: widget.items.first.proveedor),
+              _buildNonEditableField(
+                  label: 'Dirección', value: widget.items.first.direccion),
+              _buildEditableField(
+                label: 'Comentario',
+                controller: comentarioController,
               ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                if (allDisabled) {
-                  // Si todas las órdenes están deshabilitadas, solo navegar
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => const RecolectasView()),
-                  );
-                  return;
-                }
-                
-                // Si no están todas deshabilitadas, ejecutar la lógica de guardado
-                _showConfirmationDialog();
-              },
-              child: const Text('Guardar'),
-            ),
-          ],
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start, // Alinea a la izquierda
+                  children: _buildOrderDetails(),
+                ),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  if (allDisabled) {
+                    // Si todas las órdenes están deshabilitadas, solo navegar
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => const RecolectasView()),
+                    );
+                    return;
+                  }
+                  
+                  // Si no están todas deshabilitadas, ejecutar la lógica de guardado
+                  _showConfirmationDialog();
+                },
+                child: const Text('Guardar'),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -617,5 +623,3 @@ class _RecolectasDetallesViewState extends State<RecolectasDetallesView> {
     );
   }
 }
-
-

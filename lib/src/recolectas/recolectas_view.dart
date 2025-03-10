@@ -597,59 +597,53 @@ class _RecolectasViewState extends State<RecolectasView> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No se permite regresar en esta pantalla'),
-            duration: Duration(seconds: 2),
-          ),
-        );
+        // En la vista principal, permitir salir de la app
+        SystemNavigator.pop();
         return false;
       },
-      child: Navigator(
-        onGenerateRoute: (settings) => MaterialPageRoute(
-          settings: const RouteSettings(name: '/'),
-          builder: (context) => Scaffold(
-            key: _scaffoldKey, // Agregado para manejar el menú lateral
-            appBar: AppBar(
-              title: const Text('Recolectas / Pedidos'),
-              leading: IconButton(
-                icon: const Icon(Icons.menu),
-                onPressed: () {
-                  _scaffoldKey.currentState?.openDrawer(); // Abre el menú lateral
-                },
-              ),
-            ),
-            drawer: const SideMenu(), // Aquí va el menú lateral
-            body: Stack(
-              children: [
-                Opacity(
-                  opacity: _showMileageDialog ? 0.2 : 1.0, // Opacidad variable
-                  child: _buildMainContent()
-                ),
-              ],
-            ),
-            floatingActionButton: _showFinalizeButton ? AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: _isButtonExpanded ? 200.0 : 60.0,
-              height: 60.0,
-              child: FloatingActionButton.extended(
-                onPressed: () {
-                  setState(() {
-                    _isButtonExpanded = !_isButtonExpanded;
-                  });
-                  if (!_isButtonExpanded) {
-                    _showFinalizeDialog();
-                  }
-                },
-                backgroundColor: const Color.fromARGB(255, 0, 66, 68),
-                label: _isButtonExpanded
-                    ? const Text('FINALIZAR')
-                    : const Icon(Icons.check),
-                icon: _isButtonExpanded ? const Icon(Icons.check) : null,
-              ),
-            ) : null,
+      child: Scaffold(
+        key: _scaffoldKey,
+        appBar: AppBar(
+          title: const Text('Recolectas / Pedidos'),
+          leading: IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () {
+              _scaffoldKey.currentState?.openDrawer();
+            },
           ),
         ),
+        drawer: const SideMenu(),
+        body: Stack(
+          children: [
+            _buildMainContent(),
+            if (_showMileageDialog)
+              Container(
+                color: Colors.black.withOpacity(0.5),
+                width: double.infinity,
+                height: double.infinity,
+              ),
+          ],
+        ),
+        floatingActionButton: _showFinalizeButton ? AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          width: _isButtonExpanded ? 200.0 : 60.0,
+          height: 60.0,
+          child: FloatingActionButton.extended(
+            onPressed: () {
+              setState(() {
+                _isButtonExpanded = !_isButtonExpanded;
+              });
+              if (!_isButtonExpanded) {
+                _showFinalizeDialog();
+              }
+            },
+            backgroundColor: const Color.fromARGB(255, 0, 66, 68),
+            label: _isButtonExpanded
+                ? const Text('FINALIZAR')
+                : const Icon(Icons.check),
+            icon: _isButtonExpanded ? const Icon(Icons.check) : null,
+          ),
+        ) : null,
       ),
     );
   }
