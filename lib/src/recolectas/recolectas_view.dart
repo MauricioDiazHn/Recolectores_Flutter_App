@@ -129,6 +129,22 @@ class _RecolectasViewState extends State<RecolectasView> {
     );
   }
 
+  void _handleUnauthorized() {
+    // Limpiar la sesión
+    UserSession.token = null;
+    UserSession.motoristaId = null;
+    UserSession.hasShownMileageDialog = false;
+
+    // Navegar al login
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (context) => const Login(),
+        settings: const RouteSettings(name: '/login'),
+      ),
+      (route) => false,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -139,9 +155,21 @@ class _RecolectasViewState extends State<RecolectasView> {
   Future<void> _fetchData() async {
     setState(() {
       isLoading = true;
+      hasError = false;
+      errorMessage = '';
     });
-    await fetchItems();
-    await checkMileageStatus();
+
+    try {
+      await fetchItems();
+      if (!hasError) {
+        await checkMileageStatus();
+      }
+    } catch (e) {
+      setState(() {
+        hasError = true;
+        errorMessage = 'Error al cargar los datos. Por favor, intente de nuevo.';
+      });
+    }
   }
 
   Future<void> fetchItems() async {
@@ -165,12 +193,16 @@ class _RecolectasViewState extends State<RecolectasView> {
           hasError = false;
           errorMessage = '';
         });
+      } else if (response.statusCode == 401) {
+        _handleUnauthorized();
+        return;
       } else {
         setState(() {
           isLoading = false;
           hasError = true;
           errorMessage = 'Error al cargar los datos. Por favor, intente de nuevo.';
         });
+        return;
       }
     } catch (e) {
       setState(() {
@@ -182,6 +214,7 @@ class _RecolectasViewState extends State<RecolectasView> {
           errorMessage = 'Ocurrió un error inesperado. Por favor, intente de nuevo.';
         }
       });
+      return;
     }
   }
 
@@ -615,7 +648,11 @@ class _RecolectasViewState extends State<RecolectasView> {
         drawer: const SideMenu(),
         body: Stack(
           children: [
-            _buildMainContent(),
+            AnimatedOpacity(
+              duration: const Duration(milliseconds: 300),
+              opacity: isLoading ? 0.5 : 1.0,
+              child: _buildMainContent(),
+            ),
             if (_showMileageDialog)
               Container(
                 color: Colors.black.withOpacity(0.5),
@@ -649,36 +686,37 @@ class _RecolectasViewState extends State<RecolectasView> {
   }
   
   Widget _buildMainContent() {
-    return Stack(
-      children: [
-        if (isLoading)
-          const Center(
-            child: CircularProgressIndicator(),
-          )
-        else if (hasError)
-          NoConnectionView(
-            onRetry: _refreshData,
-            message: errorMessage,
-          )
-        else if (items.isEmpty)
-          const Center(
-            child: Text(
-              'No hay recolectas pendientes',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
-            ),
-          )
-        else
-          RefreshIndicator(
-            onRefresh: _refreshData,
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: _buildProviderList(),
-            ),
+    if (isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+    
+    if (hasError) {
+      return NoConnectionView(
+        onRetry: _fetchData,
+        message: errorMessage,
+      );
+    }
+    
+    if (items.isEmpty) {
+      return const Center(
+        child: Text(
+          'No hay recolectas pendientes',
+          style: TextStyle(
+            fontSize: 16,
+            color: Colors.grey,
           ),
-      ],
+        ),
+      );
+    }
+    
+    return RefreshIndicator(
+      onRefresh: _fetchData,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: _buildProviderList(),
+      ),
     );
   }
 

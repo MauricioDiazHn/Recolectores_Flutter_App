@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:recolectores_app_flutter/components/side_menu.dart';
@@ -6,6 +7,7 @@ import 'package:recolectores_app_flutter/src/entregas/api_constants.dart';
 import 'package:recolectores_app_flutter/src/services/UserSession.dart';
 import 'package:flutter/services.dart';
 import 'package:recolectores_app_flutter/src/entregas/entregas_view.dart';
+import 'package:recolectores_app_flutter/src/ui/login/login.dart';
 
 class EntregasDetallesView extends StatefulWidget {
   final List<EntregaItem> items;
@@ -20,18 +22,12 @@ class EntregasDetallesView extends StatefulWidget {
 }
 
 class _EntregasDetallesViewState extends State<EntregasDetallesView> {
-  void showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
+  bool isLoading = false;
+  bool hasError = false;
+  String errorMessage = '';
+  late TextEditingController comentarioController;
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-
-  late TextEditingController comentarioController;
 
   Map<int, bool> _showDetailsMap = {};
 
@@ -41,12 +37,61 @@ class _EntregasDetallesViewState extends State<EntregasDetallesView> {
 
   final Map<String, TextEditingController> _controllers = {};
 
-  @override
-  void initState() {
-    super.initState();
-    comentarioController = TextEditingController();
-    _initializeData();
-    _initializeState();
+  void showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  void _handleUnauthorized() {
+    // Limpiar la sesión
+    UserSession.token = null;
+    UserSession.motoristaId = null;
+    UserSession.hasShownMileageDialog = false;
+
+    // Navegar al login
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (context) => const Login(),
+        settings: const RouteSettings(name: '/login'),
+      ),
+      (route) => false,
+    );
+  }
+
+  Future<void> _updateMotoristaData() async {
+    final url = Uri.parse('$baseUrl/entregaenc/UpdateByMotoristaId/${UserSession.motoristaId}');
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${UserSession.token}',
+    };
+
+    try {
+      final response = await http.put(url, headers: headers);
+      if (response.statusCode == 401) {
+        _handleUnauthorized();
+        return;
+      } else if (response.statusCode != 200) {
+        setState(() {
+          hasError = true;
+          errorMessage = 'Error al actualizar datos del motorista. Por favor, intente de nuevo.';
+        });
+        showError(errorMessage);
+      }
+    } catch (e) {
+      setState(() {
+        hasError = true;
+        if (e is SocketException) {
+          errorMessage = 'No hay conexión a internet. Por favor, verifique su conexión y vuelva a intentar.';
+        } else {
+          errorMessage = 'Ocurrió un error inesperado al actualizar datos del motorista. Por favor, intente de nuevo.';
+        }
+      });
+      showError(errorMessage);
+    }
   }
 
   void _initializeData() {
@@ -387,5 +432,14 @@ class _EntregasDetallesViewState extends State<EntregasDetallesView> {
     }
     comentarioController.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    comentarioController = TextEditingController();
+    _initializeData();
+    _initializeState();
+    _updateMotoristaData(); // Actualizar datos al entrar a la vista
   }
 }

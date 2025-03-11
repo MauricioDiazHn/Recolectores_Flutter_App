@@ -38,7 +38,7 @@ class _SideMenuState extends State<SideMenu> {
   // Método para manejar la navegación a una pantalla específica
   void navigateTo(String route) {
     if (route == "/") {
-      Future.delayed(const Duration(seconds: 2), () {
+      Future.delayed(const Duration(seconds: 1), () {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (context) => const RecolectasView(),
@@ -48,7 +48,7 @@ class _SideMenuState extends State<SideMenu> {
         );
       });
     } else if (route == "/entregas") {
-      Future.delayed(const Duration(seconds: 2), () {
+      Future.delayed(const Duration(seconds: 1), () {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (context) => const EntregasView(),

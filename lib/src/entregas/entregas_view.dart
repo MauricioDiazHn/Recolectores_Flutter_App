@@ -124,6 +124,22 @@ class _EntregasViewState extends State<EntregasView> {
     );
   }
 
+  void _handleUnauthorized() {
+    // Limpiar la sesión
+    UserSession.token = null;
+    UserSession.motoristaId = null;
+    UserSession.hasShownMileageDialog = false;
+
+    // Navegar al login
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (context) => const Login(),
+        settings: const RouteSettings(name: '/login'),
+      ),
+      (route) => false,
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -136,34 +152,34 @@ class _EntregasViewState extends State<EntregasView> {
       isLoading = true;
       hasError = false;
       errorMessage = '';
-      _showMileageDialog = false;
-      _showFinalizeButton = false;
     });
-    
-    await fetchItems();
-    
-    if (!hasError && !isLoading) {
-      await checkMileageStatus();
+
+    try {
+      await fetchItems();
+      if (!hasError) {
+        await checkMileageStatus();
+      }
+    } catch (e) {
+      setState(() {
+        hasError = true;
+        errorMessage = 'Error al cargar los datos. Por favor, intente de nuevo.';
+      });
     }
   }
 
-  Future<void> _refreshData() async {
-    setState(() {
-      isLoading = true;
-    });
-    await fetchItems();
-    await checkMileageStatus();
-  }
-
   Future<void> fetchItems() async {
-    try {
-      final url = Uri.parse('$baseUrl/entregaenc/GetByMotoristaId/${UserSession.motoristaId}');
-      final headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${UserSession.token}',
-      };
+    String? token = UserSession.token;
+    int? motoristaId = UserSession.motoristaId;
 
+    final url = Uri.parse('$baseUrl/entregaenc/$motoristaId');
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+
+    try {
       final response = await http.get(url, headers: headers);
+
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         setState(() {
@@ -172,14 +188,16 @@ class _EntregasViewState extends State<EntregasView> {
           hasError = false;
           errorMessage = '';
         });
+      } else if (response.statusCode == 401) {
+        _handleUnauthorized();
+        return;
       } else {
         setState(() {
           isLoading = false;
           hasError = true;
-          errorMessage = 'Error al cargar las entregas. Por favor, intente de nuevo.';
-          _showMileageDialog = false;
-          _showFinalizeButton = false;
+          errorMessage = 'Error al cargar los datos. Por favor, intente de nuevo.';
         });
+        return;
       }
     } catch (e) {
       setState(() {
@@ -190,9 +208,8 @@ class _EntregasViewState extends State<EntregasView> {
         } else {
           errorMessage = 'Ocurrió un error inesperado. Por favor, intente de nuevo.';
         }
-        _showMileageDialog = false;
-        _showFinalizeButton = false;
       });
+      return;
     }
   }
 
@@ -554,114 +571,122 @@ class _EntregasViewState extends State<EntregasView> {
     }
   }
 
+  List<Widget> _buildProviderList() {
+    return items.map((item) {
+      return Card(
+        margin: const EdgeInsets.all(8.0),
+        child: ListTile(
+          title: Text('Orden: ${item.ordenCompraId}'),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Proveedor: ${item.proveedor}'),
+              Text('Dirección: ${item.direccion}'),
+              Text('Estado: ${item.estado}'),
+            ],
+          ),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => EntregasDetallesView(items: [item]),
+              ),
+            );
+          },
+        ),
+      );
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No se permite regresar en esta pantalla'),
-            duration: Duration(seconds: 2),
-          ),
-        );
+        SystemNavigator.pop();
         return false;
       },
-      child: Navigator(
-        onGenerateRoute: (settings) => MaterialPageRoute(
-          settings: const RouteSettings(name: '/entregas'),
-          builder: (context) => Scaffold(
-            key: _scaffoldKey,
-            appBar: AppBar(
-              title: const Text('Entregas'),
-              leading: IconButton(
-                icon: const Icon(Icons.menu),
-                onPressed: () {
-                  _scaffoldKey.currentState?.openDrawer();
-                },
-              ),
-            ),
-            drawer: const SideMenu(),
-            body: Stack(
-              children: [
-                Opacity(
-                  opacity: _showMileageDialog ? 0.2 : 1.0,
-                  child: RefreshIndicator(
-                    onRefresh: _refreshData,
-                    child: isLoading
-                      ? const Center(
-                          child: CircularProgressIndicator(),
-                        )
-                      : hasError
-                        ? NoConnectionView(
-                            onRetry: _fetchData,
-                            message: errorMessage,
-                          )
-                        : items.isEmpty
-                          ? const Center(
-                              child: Text(
-                                'No hay entregas pendientes',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            )
-                          : ListView.builder(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              itemCount: items.length,
-                              itemBuilder: (context, index) {
-                                final item = items[index];
-                                return Card(
-                                  margin: const EdgeInsets.all(8.0),
-                                  child: ListTile(
-                                    title: Text('Orden: ${item.ordenCompraId}'),
-                                    subtitle: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text('Proveedor: ${item.proveedor}'),
-                                        Text('Dirección: ${item.direccion}'),
-                                        Text('Estado: ${item.estado}'),
-                                      ],
-                                    ),
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              EntregasDetallesView(items: [item]),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                );
-                              },
-                            ),
-                  ),
-                ),
-              ],
-            ),
-            floatingActionButton: _showFinalizeButton ? AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: _isButtonExpanded ? 200.0 : 60.0,
-              height: 60.0,
-              child: FloatingActionButton.extended(
-                onPressed: () {
-                  setState(() {
-                    _isButtonExpanded = !_isButtonExpanded;
-                  });
-                  if (!_isButtonExpanded) {
-                    _showFinalMileageDialog();
-                  }
-                },
-                backgroundColor: const Color.fromARGB(255, 0, 66, 68),
-                label: _isButtonExpanded
-                    ? const Text('FINALIZAR')
-                    : const Icon(Icons.check),
-                icon: _isButtonExpanded ? const Icon(Icons.check) : null,
-              ),
-            ) : null,
+      child: Scaffold(
+        key: _scaffoldKey,
+        appBar: AppBar(
+          title: const Text('Entregas'),
+          leading: IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () {
+              _scaffoldKey.currentState?.openDrawer();
+            },
           ),
         ),
+        drawer: const SideMenu(),
+        body: Stack(
+          children: [
+            AnimatedOpacity(
+              duration: const Duration(milliseconds: 300),
+              opacity: isLoading ? 0.5 : 1.0,
+              child: _buildMainContent(),
+            ),
+            if (_showMileageDialog)
+              Container(
+                color: Colors.black.withOpacity(0.5),
+                width: double.infinity,
+                height: double.infinity,
+              ),
+          ],
+        ),
+        floatingActionButton: _showFinalizeButton ? AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          width: _isButtonExpanded ? 200.0 : 60.0,
+          height: 60.0,
+          child: FloatingActionButton.extended(
+            onPressed: () {
+              setState(() {
+                _isButtonExpanded = !_isButtonExpanded;
+              });
+              if (!_isButtonExpanded) {
+                _showFinalMileageDialog();
+              }
+            },
+            backgroundColor: const Color.fromARGB(255, 0, 66, 68),
+            label: _isButtonExpanded
+                ? const Text('FINALIZAR')
+                : const Icon(Icons.check),
+            icon: _isButtonExpanded ? const Icon(Icons.check) : null,
+          ),
+        ) : null,
+      ),
+    );
+  }
+
+  Widget _buildMainContent() {
+    if (isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+    
+    if (hasError) {
+      return NoConnectionView(
+        onRetry: _fetchData,
+        message: errorMessage,
+      );
+    }
+    
+    if (items.isEmpty) {
+      return const Center(
+        child: Text(
+          'No hay entregas pendientes',
+          style: TextStyle(
+            fontSize: 16,
+            color: Colors.grey,
+          ),
+        ),
+      );
+    }
+    
+    return RefreshIndicator(
+      onRefresh: _fetchData,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: _buildProviderList(),
       ),
     );
   }

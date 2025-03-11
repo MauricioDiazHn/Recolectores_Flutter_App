@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -19,11 +20,24 @@ class RecolectasDetallesView extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<RecolectasDetallesView> createState() =>
-      _RecolectasDetallesViewState();
+  State<RecolectasDetallesView> createState() => _RecolectasDetallesViewState();
 }
 
 class _RecolectasDetallesViewState extends State<RecolectasDetallesView> {
+  bool isLoading = false;
+  bool hasError = false;
+  String errorMessage = '';
+  bool _isApproved = false;
+  late TextEditingController comentarioController;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  Map<int, bool> _isApprovedMap = {};
+  Map<int, bool> _showDetailsMap = {};
+  Map<int, int> _cantidadRecogidaMap = {};
+  Map<int, Map<String, int>> _cantidadesRecogidas = {};
+  List<Map<String, dynamic>> _orderData = [];
+  final Map<String, TextEditingController> _controllers = {};
+
   void showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -33,27 +47,13 @@ class _RecolectasDetallesViewState extends State<RecolectasDetallesView> {
     );
   }
 
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-
-  bool _isApproved = false; // Inicializamos _isApproved
-  late TextEditingController comentarioController;
-
-  Map<int, bool> _isApprovedMap = {};
-  Map<int, bool> _showDetailsMap = {};
-
-  Map<int, int> _cantidadRecogidaMap = {};
-  Map<int, Map<String, int>> _cantidadesRecogidas = {};
-  List<Map<String, dynamic>> _orderData = [];
-
-  // Agregar un mapa para los controladores
-  final Map<String, TextEditingController> _controllers = {};
-
   @override
   void initState() {
     super.initState();
     comentarioController = TextEditingController();
     _initializeData();
     _initializeState();
+    _updateMotoristaData(); // Actualizar datos al entrar a la vista
   }
 
   void _initializeData() {
@@ -620,6 +620,52 @@ class _RecolectasDetallesViewState extends State<RecolectasDetallesView> {
           ],
         );
       },
+    );
+  }
+
+  Future<void> _updateMotoristaData() async {
+    final url = Uri.parse('$baseUrl/recolectaenc/UpdateByMotoristaId/${UserSession.motoristaId}');
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ${UserSession.token}',
+    };
+
+    try {
+      final response = await http.put(url, headers: headers);
+      if (response.statusCode == 401) {
+        _handleUnauthorized();
+        return;
+      } else if (response.statusCode != 200) {
+        setState(() {
+          hasError = true;
+          errorMessage = 'Error al actualizar datos del motorista. Por favor, intente de nuevo.';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        hasError = true;
+        if (e is SocketException) {
+          errorMessage = 'No hay conexión a internet. Por favor, verifique su conexión y vuelva a intentar.';
+        } else {
+          errorMessage = 'Ocurrió un error inesperado al actualizar datos del motorista. Por favor, intente de nuevo.';
+        }
+      });
+    }
+  }
+
+  void _handleUnauthorized() {
+    // Limpiar la sesión
+    UserSession.token = null;
+    UserSession.motoristaId = null;
+    UserSession.hasShownMileageDialog = false;
+
+    // Navegar al login
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (context) => const Login(),
+        settings: const RouteSettings(name: '/login'),
+      ),
+      (route) => false,
     );
   }
 }
