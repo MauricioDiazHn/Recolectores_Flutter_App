@@ -8,6 +8,7 @@ import 'package:recolectores_app_flutter/src/ui/login/login.dart';
 import 'package:recolectores_app_flutter/utils/rive_utils.dart';
 import 'package:rive/rive.dart';
 import 'package:recolectores_app_flutter/src/recolectas/recolectas_view.dart';
+import 'package:recolectores_app_flutter/src/help/help_view.dart';
 
 class SideMenu extends StatefulWidget {
   const SideMenu({super.key});
@@ -53,6 +54,16 @@ class _SideMenuState extends State<SideMenu> {
           MaterialPageRoute(
             builder: (context) => const EntregasView(),
             settings: const RouteSettings(name: '/entregas'),
+          ),
+          (route) => false,
+        );
+      });
+    } else if (route == "/help") {
+      Future.delayed(const Duration(seconds: 1), () {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) => const HelpView(),
+            settings: const RouteSettings(name: '/help'),
           ),
           (route) => false,
         );
