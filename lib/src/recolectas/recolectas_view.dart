@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:recolectores_app_flutter/components/side_menu.dart';
 import 'package:recolectores_app_flutter/components/no_connection_view.dart';
-import 'package:recolectores_app_flutter/models/rive_asset.dart';
 import 'package:recolectores_app_flutter/src/services/UserSession.dart';
+import 'package:recolectores_app_flutter/src/services/secure_storage_service.dart';
 import 'package:recolectores_app_flutter/src/ui/login/login.dart';
-
-import '../settings/settings_view.dart';
+import 'dart:async';
 import 'recolectas_detalles_view.dart';
-import 'package:rive/rive.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
@@ -117,39 +115,31 @@ class _RecolectasViewState extends State<RecolectasView> {
   bool _showFinalizeButton = true;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int? _kmInicial;
-
-  List<RecolectaItem> items = [];
-
-  void showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
-    );
-  }
-
-  void _handleUnauthorized() {
-    // Limpiar la sesión
-    UserSession.token = null;
-    UserSession.motoristaId = null;
-    UserSession.hasShownMileageDialog = false;
-
-    // Navegar al login
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(
-        builder: (context) => const Login(),
-        settings: const RouteSettings(name: '/login'),
-      ),
-      (route) => false,
-    );
-  }
+  Timer? _sessionCheckTimer;
+  List<RecolectaItem> items = [];  // Lista inicializada correctamente
 
   @override
   void initState() {
     super.initState();
-    _checkAndShowMileageDialog(); // Verificar y mostrar el diálogo al iniciar
     _fetchData();
+    _startSessionCheck();
+  }
+
+  @override
+  void dispose() {
+    _sessionCheckTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startSessionCheck() {
+    // Verificar la sesión cada 5 minutos
+    _sessionCheckTimer = Timer.periodic(const Duration(minutes: 5), (timer) async {
+      final secureStorage = SecureStorageService();
+      final isValid = await secureStorage.isSessionValid();
+      if (!isValid && mounted) {
+        _handleUnauthorized();
+      }
+    });
   }
 
   Future<void> _fetchData() async {
@@ -616,6 +606,37 @@ class _RecolectasViewState extends State<RecolectasView> {
     await _updateMotoristaData();
     await _fetchData();
     await _checkAndShowMileageDialog();
+  }
+
+  void _handleUnauthorized() async {
+    // Limpiar el almacenamiento seguro
+    final secureStorage = SecureStorageService();
+    await secureStorage.clearAll();
+    
+    // Limpiar la sesión
+    UserSession.token = null;
+    UserSession.motoristaId = null;
+    UserSession.hasShownMileageDialog = false;
+
+    if (mounted) {
+      // Navegar al login
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (context) => const Login(),
+          settings: const RouteSettings(name: '/login'),
+        ),
+        (route) => false,
+      );
+    }
+  }
+
+  void showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 
   @override
