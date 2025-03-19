@@ -105,7 +105,7 @@ class RecolectaItem {
   }
 }
 
-class _RecolectasViewState extends State<RecolectasView> {
+class _RecolectasViewState extends State<RecolectasView> with WidgetsBindingObserver {
   bool isLoading = false;
   bool hasError = false;
   String errorMessage = '';
@@ -115,31 +115,46 @@ class _RecolectasViewState extends State<RecolectasView> {
   bool _showFinalizeButton = true;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int? _kmInicial;
-  Timer? _sessionCheckTimer;
-  List<RecolectaItem> items = [];  // Lista inicializada correctamente
+  List<RecolectaItem> items = [];
 
   @override
   void initState() {
     super.initState();
-    _fetchData();
-    _startSessionCheck();
+    WidgetsBinding.instance.addObserver(this);
+    _checkSessionAndFetchData(); // Check session when loading the view
   }
 
   @override
   void dispose() {
-    _sessionCheckTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _mileageController.dispose();
     super.dispose();
   }
 
-  void _startSessionCheck() {
-    // Verificar la sesión cada 5 minutos
-    _sessionCheckTimer = Timer.periodic(const Duration(minutes: 5), (timer) async {
-      final secureStorage = SecureStorageService();
-      final isValid = await secureStorage.isSessionValid();
-      if (!isValid && mounted) {
-        _handleUnauthorized();
-      }
-    });
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Check session when app comes to foreground
+      _checkSessionAndFetchData();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _checkSessionAndFetchData(); // Check session when returning to view
+  }
+
+  Future<void> _checkSessionAndFetchData() async {
+    if (!mounted) return;
+    
+    final secureStorage = SecureStorageService();
+    final isValid = await secureStorage.isSessionValid();
+    if (!isValid && mounted) {
+      _handleUnauthorized();
+    } else {
+      _fetchData(); // Load data if session is valid
+    }
   }
 
   Future<void> _fetchData() async {
@@ -603,9 +618,11 @@ class _RecolectasViewState extends State<RecolectasView> {
   }
 
   Future<void> _refreshData() async {
-    await _updateMotoristaData();
-    await _fetchData();
-    await _checkAndShowMileageDialog();
+    await _checkSessionAndFetchData(); // Verify session when refreshing
+    if (mounted) {
+      await _updateMotoristaData();
+      await _checkAndShowMileageDialog();
+    }
   }
 
   void _handleUnauthorized() async {

@@ -1,25 +1,34 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
+import 'package:meta/meta.dart';
 
 class SecureStorageService {
-  static final SecureStorageService _instance = SecureStorageService._internal();
+  static SecureStorageService? _instance;
+  final FlutterSecureStorage _storage;
   
-  factory SecureStorageService() {
-    return _instance;
+  factory SecureStorageService({FlutterSecureStorage? storage}) {
+    _instance ??= SecureStorageService._internal(
+      storage ?? const FlutterSecureStorage(
+        aOptions: AndroidOptions(
+          encryptedSharedPreferences: true,
+        )
+      )
+    );
+    return _instance!;
   }
 
-  SecureStorageService._internal();
+  SecureStorageService._internal(this._storage);
 
-  final _storage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(
-      encryptedSharedPreferences: true,
-    )
-  );
-  
   static const _tokenKey = 'user_token';
   static const _userDataKey = 'user_data';
   static const _mileageDialogKey = 'mileage_dialog_shown';
   static const _lastLoginKey = 'last_login';
+
+  // Para tests: resetear la instancia
+  @visibleForTesting
+  static void reset() {
+    _instance = null;
+  }
 
   Future<void> saveToken(String token) async {
     try {
@@ -123,6 +132,7 @@ class SecureStorageService {
       final difference = now.difference(lastLogin);
 
       return difference.inDays < 7;
+      // return difference.inMinutes < 1;
     } catch (e) {
       print('Error checking session validity: $e');
       return false;

@@ -145,7 +145,7 @@ class _LoginState extends State<Login> {
                         fontSize: 30),
                       ),
                       Text(
-                        'v1.2',
+                        'v1.3',
                         style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w900,
@@ -273,7 +273,7 @@ class _LoginState extends State<Login> {
               ),
               const Center(
                 child: Text(
-                  'App Suite v1.2',
+                  'App Suite v1.3',
                   style: TextStyle(color: Color(0xff14DAE2)),
                 ),
               ),

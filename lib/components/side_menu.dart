@@ -104,7 +104,7 @@ class _SideMenuState extends State<SideMenu> {
               InfoCard(
                 name: UserSession.fullName,
                 profession: UserSession.userName,
-                versionApp: "v1.2",
+                versionApp: "v1.3",
               ),
               Padding(
                 padding: const EdgeInsets.only(left: 24, top: 32, bottom: 16),
