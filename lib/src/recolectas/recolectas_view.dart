@@ -388,7 +388,7 @@ class _RecolectasViewState extends State<RecolectasView> {
   }
 
   Future<void> _fetchKmInicial() async {
-    final url = Uri.parse('$baseUrl/recolectaenc/getKmInicial/${UserSession.motoristaId}');
+    final url = Uri.parse('$baseUrl/recolectaenc/${UserSession.motoristaId}/currentKmInicial');
     final headers = {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ${UserSession.token}',
@@ -469,14 +469,6 @@ class _RecolectasViewState extends State<RecolectasView> {
           hasError = false;
           errorMessage = '';
         });
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const Login(),
-            settings: const RouteSettings(name: '/login'),
-          ),
-          (route) => false,
-        );
       } else {
         setState(() {
           hasError = true;
@@ -621,7 +613,7 @@ class _RecolectasViewState extends State<RecolectasView> {
   }
 
   Future<void> _refreshData() async {
-    await _updateMotoristaData(); // Primero actualizamos los datos del motorista
+    await _updateMotoristaData();
     await _fetchData();
     await _checkAndShowMileageDialog();
   }
@@ -699,24 +691,29 @@ class _RecolectasViewState extends State<RecolectasView> {
       );
     }
     
-    if (items.isEmpty) {
-      return const Center(
-        child: Text(
-          'No hay recolectas pendientes',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey,
-          ),
-        ),
-      );
-    }
-    
     return RefreshIndicator(
-      onRefresh: _fetchData,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: _buildProviderList(),
-      ),
+      onRefresh: _refreshData,
+      child: items.isEmpty
+          ? ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                Container(
+                  height: MediaQuery.of(context).size.height * 0.8,
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'No hay recolectas pendientes',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: _buildProviderList(),
+            ),
     );
   }
 
