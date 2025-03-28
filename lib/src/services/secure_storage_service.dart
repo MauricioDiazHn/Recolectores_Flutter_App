@@ -132,7 +132,6 @@ class SecureStorageService {
       final difference = now.difference(lastLogin);
 
       return difference.inDays < 7;
-      // return difference.inMinutes < 1;
     } catch (e) {
       print('Error checking session validity: $e');
       return false;

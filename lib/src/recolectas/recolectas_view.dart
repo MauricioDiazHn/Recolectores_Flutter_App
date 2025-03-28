@@ -109,25 +109,28 @@ class _RecolectasViewState extends State<RecolectasView> with WidgetsBindingObse
   bool isLoading = false;
   bool hasError = false;
   String errorMessage = '';
-  bool _showMileageDialog = !UserSession.hasShownMileageDialog;
+  bool _needsKmInicial = true;
+  bool _shouldShowMileageDialog = false;
   TextEditingController _mileageController = TextEditingController();
   bool _isButtonExpanded = false;
   bool _showFinalizeButton = true;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int? _kmInicial;
   List<RecolectaItem> items = [];
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _checkSessionAndFetchData(); // Check session when loading the view
+    _checkKmInicialAndSession();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _mileageController.dispose();
+    _refreshTimer?.cancel();
     super.dispose();
   }
 
@@ -145,6 +148,31 @@ class _RecolectasViewState extends State<RecolectasView> with WidgetsBindingObse
     _checkSessionAndFetchData(); // Check session when returning to view
   }
 
+  Future<void> _checkKmInicialAndSession() async {
+    if (!mounted) return;
+    
+    final secureStorage = SecureStorageService();
+    final isValid = await secureStorage.isSessionValid();
+    
+    if (!isValid) {
+      _handleUnauthorized();
+      return;
+    }
+
+    bool hasCurrentMileage = await hasEnteredCurrentMileage(UserSession.motoristaId ?? 0);
+    setState(() {
+      _needsKmInicial = !hasCurrentMileage;
+    });
+
+    if (!_needsKmInicial) {
+      _fetchData();
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _displayMileageDialog();
+      });
+    }
+  }
+
   Future<void> _checkSessionAndFetchData() async {
     if (!mounted) return;
     
@@ -153,7 +181,7 @@ class _RecolectasViewState extends State<RecolectasView> with WidgetsBindingObse
     if (!isValid && mounted) {
       _handleUnauthorized();
     } else {
-      _fetchData(); // Load data if session is valid
+      _fetchData();
     }
   }
 
@@ -223,51 +251,58 @@ class _RecolectasViewState extends State<RecolectasView> with WidgetsBindingObse
     }
   }
 
-  void _showMilleageDialog() {
+  void _displayMileageDialog() {
+    if (!mounted) return;
+    
     showDialog(
       context: context,
-      barrierDismissible: false, // Evita interacción con el fondo
+      barrierDismissible: false,
+      barrierColor: Colors.black87,
       builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color.fromARGB(255, 0, 66, 68),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Ingrese el kilometraje actual', style: TextStyle(color: Color.fromARGB(255, 255, 255, 255))),
-              TextFormField(
-                controller: _mileageController,
-                keyboardType: TextInputType.number,
-                inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],
-                decoration: const InputDecoration(
-                  hintText: 'Kilometraje',
-                  hintStyle: TextStyle(color: Colors.white54),
+        return WillPopScope(
+          onWillPop: () async => false,
+          child: AlertDialog(
+            backgroundColor: const Color.fromARGB(255, 0, 66, 68),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Ingrese el kilometraje inicial',
+                  style: TextStyle(color: Color.fromARGB(255, 255, 255, 255)),
                 ),
-                style: const TextStyle(color: Colors.white),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Ingrese un valor';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  if (_mileageController.text.isNotEmpty) {
+                TextFormField(
+                  controller: _mileageController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly],
+                  decoration: const InputDecoration(
+                    hintText: 'Kilometraje',
+                    hintStyle: TextStyle(color: Colors.white54),
+                  ),
+                  style: const TextStyle(color: Colors.white),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    if (_mileageController.text.isEmpty) {
+                      showError('Debe ingresar un kilometraje válido');
+                      return;
+                    }
+                    final kmInicial = int.tryParse(_mileageController.text);
+                    if (kmInicial == null || kmInicial <= 0) {
+                      showError('Ingrese un kilometraje válido mayor a 0');
+                      return;
+                    }
+                    _submitKmInicial(UserSession.motoristaId ?? 0, kmInicial, 'En Ruta');
                     setState(() {
-                      final kmInicial = int.tryParse(_mileageController.text) ?? 0;
-                      _submitKmInicial(UserSession.motoristaId ?? 0, kmInicial, 'En Ruta');
-                      _showMileageDialog = false;
-                      UserSession.hasShownMileageDialog = true; // Actualiza el flag
+                      _needsKmInicial = false;
                     });
-                    int kilometraje = int.parse(_mileageController.text);
-                    print("Kilometraje ingresado: $kilometraje");
-                    Navigator.of(context).pop(); // Cierra el diálogo
-                  }
-                },
-                child: const Text('Aceptar'),
-              ),
-            ],
+                    Navigator.of(context).pop();
+                    _fetchData();
+                  },
+                  child: const Text('Aceptar'),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -503,7 +538,7 @@ class _RecolectasViewState extends State<RecolectasView> with WidgetsBindingObse
       final response = await http.get(url, headers: headers);
       if (response.statusCode == 200) {
         setState(() {
-          _showMileageDialog = response.body == 'true';
+          _shouldShowMileageDialog = response.body == 'true';
           hasError = false;
           errorMessage = '';
         });
@@ -571,16 +606,16 @@ class _RecolectasViewState extends State<RecolectasView> with WidgetsBindingObse
     bool hasFinalized = await hasFinalizedRecolecta(motoristaId);
 
     setState(() {
-      _showMileageDialog = !hasCurrentMileage;
+      _shouldShowMileageDialog = !hasCurrentMileage;
       _showFinalizeButton = !hasFinalized;
     });
   }
 
   Future<void> _checkAndShowMileageDialog() async {
     await checkMileageStatus();
-    if (_showMileageDialog) {
+    if (_shouldShowMileageDialog) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showMilleageDialog();
+        _displayMileageDialog();
       });
     }
   }
@@ -683,7 +718,7 @@ class _RecolectasViewState extends State<RecolectasView> with WidgetsBindingObse
               opacity: isLoading ? 0.5 : 1.0,
               child: _buildMainContent(),
             ),
-            if (_showMileageDialog)
+            if (_shouldShowMileageDialog)
               Container(
                 color: Colors.black.withOpacity(0.5),
                 width: double.infinity,
@@ -715,7 +750,18 @@ class _RecolectasViewState extends State<RecolectasView> with WidgetsBindingObse
     );
   }
   
+  // Modificar _buildMainContent para bloquear contenido sin km inicial
   Widget _buildMainContent() {
+    if (_needsKmInicial) {
+      return const Center(
+        child: Text(
+          'Debe ingresar el kilometraje inicial para continuar',
+          style: TextStyle(color: Colors.white),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+
     if (isLoading) {
       return const Center(
         child: CircularProgressIndicator(),
@@ -731,19 +777,47 @@ class _RecolectasViewState extends State<RecolectasView> with WidgetsBindingObse
     
     return RefreshIndicator(
       onRefresh: _refreshData,
+      color: const Color.fromARGB(255, 0, 66, 68), 
+      backgroundColor: Colors.white, 
+      strokeWidth: 3.0,
+      displacement: 40.0, 
       child: items.isEmpty
-          ? ListView(
+          ? CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              children: [
-                Container(
-                  height: MediaQuery.of(context).size.height * 0.8,
-                  alignment: Alignment.center,
-                  child: const Text(
-                    'No hay recolectas pendientes',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey,
-                    ),
+              slivers: [
+                SliverFillRemaining(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.assignment_outlined,
+                        size: 64,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'No tienes recolectas pendientes',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.grey,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Desliza hacia abajo para actualizar',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.withOpacity(0.8),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Icon(
+                        Icons.arrow_downward,
+                        size: 24,
+                        color: Colors.grey.withOpacity(0.8),
+                      ),
+                    ],
                   ),
                 ),
               ],
