@@ -28,17 +28,20 @@ class InfoCard extends StatelessWidget {
         style: const TextStyle(color: Colors.white),
       ),
       subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-            Text(
-              profession ?? "",
-              style: const TextStyle(color: Colors.white),
-            ),
-            Text(
-              versionApp ?? "",
-              style: const TextStyle(color: Colors.white),
-            ),
+          const SizedBox(height: 0.2),
+          Text(
+            profession ?? "",
+            style: const TextStyle(color: Colors.white70),
+          ),
+          const SizedBox(height: 0.2),
+          Text(
+            versionApp ?? "",
+            style: const TextStyle(color: Colors.white70),
+          ),
         ],
-      )
+      ),
     );
   }
 }
