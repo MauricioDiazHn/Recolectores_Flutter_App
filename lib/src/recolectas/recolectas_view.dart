@@ -385,7 +385,7 @@ class _RecolectasViewState extends State<RecolectasView> with WidgetsBindingObse
                   ),
                   if (_kmInicial != null)
                       Text(
-                        'Kilometraje Inicial Ingresado: $_kmInicial',
+                        'KmInicial Ingresado: $_kmInicial',
                         style: const TextStyle(color: Colors.white),
                       ),
                   TextFormField(
@@ -439,7 +439,7 @@ class _RecolectasViewState extends State<RecolectasView> with WidgetsBindingObse
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         setState(() {
-          _kmInicial = data['kmInicial'] ?? 0;
+          _kmInicial = data ?? 0;
           hasError = false;
           errorMessage = '';
         });

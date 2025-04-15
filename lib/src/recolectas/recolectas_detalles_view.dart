@@ -80,29 +80,33 @@ class _RecolectasDetallesViewState extends State<RecolectasDetallesView> {
 
         for (var ordenData in allOrdenes) {
           final int orden = ordenData['orden'];
+          final String estado = ordenData['estado']?.toLowerCase() ?? '';
           _cantidadRecogidaMap[orden] = 0;
           
           // Inicializar el mapa para esta orden
           _cantidadesRecogidas[orden] = {};
           
-          // Iterar sobre los productos y establecer las cantidades ingresadas
+          // Iterar sobre los productos
           for (var producto in ordenData['productos']) {
             String nombreProducto = producto['nombre'];
-            // Usar cantIngresada si existe, si no, usar la cantidad original
-            int cantidadInicial;
-            if (producto['cantIngresada'] != null) {
-              cantidadInicial = producto['cantIngresada'];
+            int cantidadMaxima = producto['cantidad'];
+            int cantidadIngresada = producto['cantIngresada'] ?? 0;
+            
+            // Si la orden ya fue procesada, usar cantIngresada
+            if (estado == 'incompleta' || estado == 'fallida' || estado == 'recolectada') {
+              _cantidadesRecogidas[orden]![nombreProducto] = cantidadIngresada;
             } else {
-              cantidadInicial = producto['cantidad'];
+              // Para órdenes nuevas, usar cantidad máxima
+              _cantidadesRecogidas[orden]![nombreProducto] = cantidadMaxima;
             }
             
-            _cantidadesRecogidas[orden]![nombreProducto] = cantidadInicial;
-            
             String controllerKey = '${orden}_$nombreProducto';
-            _controllers[controllerKey] = TextEditingController(text: cantidadInicial.toString());
+            _controllers[controllerKey] = TextEditingController(
+              text: _cantidadesRecogidas[orden]![nombreProducto].toString()
+            );
           }
           
-          // Verificar el estado inicial del switch basado en las cantidades
+          // Verificar el estado de las cantidades
           _verificarCantidadesCompletas(orden, ordenData['productos']);
         }
       });
